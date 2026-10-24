@@ -18,17 +18,6 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
-    },
-    "prod-local": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": false,
-      "applicationUrl": "http://localhost:5000",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Production",
-        "Database__Provider": "Postgres",
-        "ConnectionStrings__Postgres": "Host=localhost;Database=pz;Username=pz;Password=pz"
-      }
     }
   }
 }

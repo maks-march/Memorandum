@@ -10,7 +10,7 @@ namespace Memorandum.Api.Controllers;
 [Tags("Health")]
 public sealed class HealthController(IConfiguration config, IHostEnvironment env) : ControllerBase
 {
-    /// <summary>Реальный health: окружение, провайдер БД, версия сборки.</summary>
+    /// <summary>Диагностический health: окружение, провайдер БД, версия сборки.</summary>
     /// <response code="200">Сервис работает.</response>
     [HttpGet]
     [ProducesResponseType<HealthResponse>(StatusCodes.Status200OK)]

@@ -1,0 +1,35 @@
+# Контекст сборки — корень репозитория. Всё, что не нужно образам, исключаем.
+
+# git и редакторы
+.git
+.gitignore
+.github
+.vscode
+.idea
+
+# зависимости и артефакты сборки
+**/node_modules
+**/bin
+**/obj
+**/dist
+**/dist-ssr
+**/*.tsbuildinfo
+**/.vite
+
+# локальные данные и секреты
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/.env
+**/.env.*
+!**/.env.example
+infra/certs
+backups
+
+# документация и тестовые артефакты (в образы не нужны)
+docs
+*.md
+!README.md
+uploads
+tests/e2e/report
+coverage

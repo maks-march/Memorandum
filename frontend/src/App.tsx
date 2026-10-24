@@ -1,15 +1,34 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchHealth, type HealthResult } from './api';
 
 const isDev = import.meta.env.DEV;
+const proxyTarget = import.meta.env.VITE_API_TARGET ?? 'http://localhost:5000';
 
 export default function App() {
   const [health, setHealth] = useState<HealthResult | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // защита от гонки: применяем только ответ на последний запрос
+  const lastRequest = useRef(0);
+  const alive = useRef(true);
+
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+
   const call = useCallback(async (path: string) => {
+    const id = ++lastRequest.current;
     setLoading(true);
-    setHealth(await fetchHealth(path));
+
+    const result = await fetchHealth(path);
+
+    // устаревший ответ (или компонент размонтирован) — не трогаем состояние
+    if (!alive.current || id !== lastRequest.current) return;
+
+    setHealth(result);
     setLoading(false);
   }, []);
 
@@ -26,11 +45,11 @@ export default function App() {
         <h1>Memorandum · health</h1>
         <div className="badges">
           <span className={`badge ${isDev ? 'badge-dev' : 'badge-prod'}`}>
-            {isDev ? 'DEV (vite)' : 'PROD (nginx)'}
+            {isDev ? 'DEV (vite)' : 'PROD (static build)'}
           </span>
           {health?.ok && (
             <span className={`badge ${isMock ? 'badge-mock' : 'badge-api'}`}>
-              ответ от: {health.data.mode === 'mock' ? 'MOCK' : 'API'}
+              ответ от: {isMock ? 'MOCK' : 'API'}
             </span>
           )}
           {loading && <span className="badge">загрузка…</span>}
@@ -40,8 +59,13 @@ export default function App() {
       <section className="card">
         <p className="hint">
           Запросы идут по относительным путям: <code>/api/health</code> и <code>/mock/api/health</code>.
-          В dev их проксирует Vite на <code>{import.meta.env.VITE_API_TARGET ?? 'http://localhost:5000'}</code>,
-          в prod — nginx на контейнер <code>api</code>.
+          {isDev ? (
+            <>
+              {' '}В dev их проксирует Vite на <code>{proxyTarget}</code>.
+            </>
+          ) : (
+            <> В этой сборке запросы обрабатывает сервер, раздающий статику (в проде — nginx).</>
+          )}
         </p>
 
         <div className="actions">

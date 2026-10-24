@@ -18,7 +18,7 @@ cp infra/.env.example infra/.env && chmod 600 infra/.env    # задать POSTG
 docker compose -f infra/docker-compose.prod.yml up -d --build
 ```
 
-Подробнее — [`infra/README.md`](infra/README.md).
+Инфраструктура, dev/prod-стек и разбор типовых проблем — [`infra/README.md`](infra/README.md).
 
 ### Проверка разделения сред
 

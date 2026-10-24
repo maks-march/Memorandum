@@ -24,7 +24,19 @@ cd backend && dotnet run --project src/Memorandum.Api        # http://localhost:
 cd frontend && npm install && npm run dev             # http://localhost:5173
 ```
 
-## PROD
+## PROD — с нуля одной командой
+
+```bash
+./infra/prod-up.sh                                   # собрать, поднять, дождаться healthy
+APP_HOST=pp7.example.ru ./infra/prod-up.sh --tls     # + Let's Encrypt (нужен домен)
+./infra/prod-up.sh --reset                           # снести данные и поднять заново
+./infra/prod-up.sh --rebuild                         # пересобрать образы без кэша
+```
+
+Скрипт создаёт `infra/.env` с сгенерированным паролем БД (chmod 600), проверяет docker/compose,
+собирает образы и ждёт ответа `/api/health`.
+
+Вручную:
 
 ```bash
 cp infra/.env.example infra/.env && $EDITOR infra/.env && chmod 600 infra/.env
@@ -59,7 +71,8 @@ infra/
 ├─ docker-compose.prod.yml    prod: web + api + db (+ certbot, профиль tls)
 ├─ api.Dockerfile             publish API, non-root
 ├─ web.Dockerfile             build Vite → nginx + статика
-├─ nginx/default.conf.template  SPA, /api → api:8080, /mock → 404, ACME, healthz
+├─ nginx/default.conf.template  SPA, /api → api:8080, /mock → 404, ACME
 ├─ nginx/snippets/proxy.conf  заголовки прокси
+├─ prod-up.sh                 запуск прода с нуля (сборка, .env, ожидание health)
 └─ .env.example               переменные для prod
 ```

@@ -1,9 +1,16 @@
 # ─────────────────────────────────────────────────────────────────────────────
 #  PROD: nginx (статика SPA + прокси) + api + postgres.
-#  Запуск:  cp infra/.env.example infra/.env && docker compose -f infra/docker-compose.prod.yml up -d --build
-#  Наружу:  80 (и 443 при включённом профиле tls). API и БД — только внутренняя сеть.
+#  Запуск:  ./infra/prod-up.sh          (или docker compose -f infra/docker-compose.prod.yml up -d --build)
+#  Наружу:  80. HTTPS включается вручную — см. комментарий в infra/nginx/default.conf.template.
+#  API и БД — только внутренняя сеть.
 # ─────────────────────────────────────────────────────────────────────────────
 name: memorandum
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
 
 services:
   db:
@@ -20,6 +27,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
     # порт наружу не публикуем — только внутри сети
 
   api:
@@ -36,12 +46,17 @@ services:
       ConnectionStrings__Postgres: "Host=db;Port=5432;Database=${POSTGRES_DB:-memorandum};Username=${POSTGRES_USER:-memorandum};Password=${POSTGRES_PASSWORD}"
       Database__Provider: Postgres
       Mock__Enabled: "false"
+      # host-фильтрация: домен + localhost (для healthcheck изнутри контейнера)
+      AllowedHosts: "${APP_HOST:-localhost};localhost;127.0.0.1"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
       interval: 20s
       timeout: 5s
       retries: 5
       start_period: 20s
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
 
   web:
     build:
@@ -53,15 +68,23 @@ services:
         condition: service_healthy
     ports:
       - "80:80"
-      # - "443:443"        # включить вместе с профилем tls
+      # - "443:443"        # включить вместе с server-блоком 443 (см. nginx/default.conf.template)
     volumes:
       - certs:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
     environment:
       APP_HOST: ${APP_HOST:-localhost}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
 
-  # TLS: docker compose -f infra/docker-compose.prod.yml --profile tls up -d
-  # (одноразово выпускает сертификат и далее продлевает; требует домен в APP_HOST)
+  # TLS: APP_HOST=<домен> docker compose -f infra/docker-compose.prod.yml --profile tls up -d
+  # Выпускает и продлевает сертификат. HTTPS заработает после включения server-блока 443 + порта 443.
   certbot:
     image: certbot/certbot:latest
     profiles: ["tls"]
@@ -69,12 +92,35 @@ services:
     volumes:
       - certs:/etc/letsencrypt
       - certbot_www:/var/www/certbot
+    logging: *default-logging
     entrypoint: >
       /bin/sh -c "trap exit TERM;
       certbot certonly --webroot -w /var/www/certbot -d ${APP_HOST} --email ${CERTBOT_EMAIL} --agree-tos --no-eff-email -n || true;
       while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
 
+  # Бэкап БД: docker compose -f infra/docker-compose.prod.yml --profile tools run --rm backup
+  # Поставить в cron хоста: 0 3 * * * cd /opt/memorandum && docker compose -f infra/docker-compose.prod.yml --profile tools run --rm backup
+  backup:
+    image: postgres:17-alpine
+    profiles: ["tools"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-memorandum}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-memorandum}
+    volumes:
+      - backups:/backups
+    logging: *default-logging
+    entrypoint: >
+      /bin/sh -c "pg_dump -Fc | gzip -9 > /backups/memorandum-$$(date +%Y%m%d-%H%M%S).dump.gz &&
+      find /backups -name '*.gz' -mtime +14 -delete &&
+      echo backup-ok: $$(du -h /backups | tail -1)"
+
 volumes:
   pgdata:
   certs:
   certbot_www:
+  backups:
