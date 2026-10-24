@@ -1,0 +1,80 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  PROD: nginx (статика SPA + прокси) + api + postgres.
+#  Запуск:  cp infra/.env.example infra/.env && docker compose -f infra/docker-compose.prod.yml up -d --build
+#  Наружу:  80 (и 443 при включённом профиле tls). API и БД — только внутренняя сеть.
+# ─────────────────────────────────────────────────────────────────────────────
+name: memorandum
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-memorandum}
+      POSTGRES_USER: ${POSTGRES_USER:-memorandum}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в infra/.env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-memorandum} -d ${POSTGRES_DB:-memorandum}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # порт наружу не публикуем — только внутри сети
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/api.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      ConnectionStrings__Postgres: "Host=db;Port=5432;Database=${POSTGRES_DB:-memorandum};Username=${POSTGRES_USER:-memorandum};Password=${POSTGRES_PASSWORD}"
+      Database__Provider: Postgres
+      Mock__Enabled: "false"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/web.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      # - "443:443"        # включить вместе с профилем tls
+    volumes:
+      - certs:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+    environment:
+      APP_HOST: ${APP_HOST:-localhost}
+
+  # TLS: docker compose -f infra/docker-compose.prod.yml --profile tls up -d
+  # (одноразово выпускает сертификат и далее продлевает; требует домен в APP_HOST)
+  certbot:
+    image: certbot/certbot:latest
+    profiles: ["tls"]
+    restart: unless-stopped
+    volumes:
+      - certs:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: >
+      /bin/sh -c "trap exit TERM;
+      certbot certonly --webroot -w /var/www/certbot -d ${APP_HOST} --email ${CERTBOT_EMAIL} --agree-tos --no-eff-email -n || true;
+      while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
+
+volumes:
+  pgdata:
+  certs:
+  certbot_www:

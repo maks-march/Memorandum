@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Memorandum.Api/Memorandum.Api.csproj" />
+  </Folder>
+</Solution>

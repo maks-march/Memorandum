@@ -31,3 +31,34 @@ _ReSharper*/
 .idea/
 #Nuget packages folder
 packages/
+
+# ── Memorandum: backend (.NET) ──────────────────────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+.vs/
+**/app.db
+**/app.db-shm
+**/app.db-wal
+*.db
+*.db-shm
+*.db-wal
+
+# ── Memorandum: frontend (Vite) ─────────────────────────────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+npm-debug.log*
+
+# ── Memorandum: инфра и секреты ─────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+infra/.env
+infra/certs/
+backups/

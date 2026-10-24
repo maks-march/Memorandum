@@ -1,0 +1,53 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  DEV: горячая перезагрузка бэка и фронта, SQLite, всё локально.
+#  Запуск:  docker compose -f infra/docker-compose.dev.yml up
+#  Фронт:   http://localhost:5173      API: http://localhost:5000/scalar/v1
+# ─────────────────────────────────────────────────────────────────────────────
+name: memorandum-dev
+
+services:
+  api:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    working_dir: /src
+    command: >
+      dotnet watch run --project src/Memorandum.Api/Memorandum.Api.csproj
+      --no-launch-profile --urls http://0.0.0.0:5000
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_USE_POLLING_FILE_WATCHER: "1"      # надёжнее на Docker Desktop (Win/Mac)
+      Database__Provider: Sqlite
+      Mock__Enabled: "true"
+    volumes:
+      - ../backend:/src
+      - nuget:/root/.nuget/packages          # быстрый restore между перезапусками
+      # файл SQLite (app.db) создаётся рядом с проектом и не коммитится: src/Memorandum.Api/app.db
+    ports:
+      - "5000:5000"                          # Scalar + OpenAPI доступны снаружи контейнера
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  web:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_API_TARGET: http://api:5000        # Vite проксирует /api и /mock сюда
+      VITE_PORT: "5173"
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ../frontend:/app
+      - node_modules:/app/node_modules        # не затирать хостовым node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  nuget:
+  node_modules:
