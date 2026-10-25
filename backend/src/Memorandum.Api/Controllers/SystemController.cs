@@ -1,4 +1,3 @@
-using System.Reflection;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -21,7 +20,7 @@ public sealed class SystemController(IHostEnvironment env) : ControllerBase
     public ActionResult<SystemInfoResponse> Info() =>
         Ok(new SystemInfoResponse(
             ApiVersions: ["1.0"],
-            AppVersion: Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0",
+            AppVersion: BuildInfo.Version,
             Environment: env.EnvironmentName,
             RequestedVersion: Format(HttpContext.RequestedApiVersion)));
 
@@ -30,7 +29,7 @@ public sealed class SystemController(IHostEnvironment env) : ControllerBase
 }
 
 /// <param name="ApiVersions">Поддерживаемые версии API.</param>
-/// <param name="AppVersion">Версия сборки сервиса.</param>
+/// <param name="AppVersion">Версия сборки: семантическая версия + короткий git sha (<c>1.0.0+abc1234</c>).</param>
 /// <param name="Environment">Окружение (Development/Production).</param>
 /// <param name="RequestedVersion">Версия, определённая для текущего запроса (из сегмента URL).</param>
 public sealed record SystemInfoResponse(

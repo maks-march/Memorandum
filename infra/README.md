@@ -11,7 +11,7 @@
 docker compose -f infra/docker-compose.dev.yml up
 ```
 
-- бэкенд перезапускается сам при изменении `backend/**` (SQLite-файл лежит в `backend/src/Memorandum.Api/app.db`);
+- бэкенд перезапускается сам при изменении `backend/**`;
 - фронт — горячая перезагрузка, `/api` и `/mock` проксируются на `api:5000`;
 - Scalar открыт на `http://localhost:5000/scalar/v1`.
 
@@ -28,7 +28,7 @@ cd frontend && npm install && npm run dev             # http://localhost:5173
 
 ```bash
 ./infra/prod-up.sh                                   # собрать, поднять, дождаться healthy
-APP_HOST=pp7.example.ru ./infra/prod-up.sh --tls     # + Let's Encrypt (нужен домен)
+APP_HOST=memorandum.example.ru ./infra/prod-up.sh --tls     # + Let's Encrypt (нужен домен)
 ./infra/prod-up.sh --reset                           # снести данные и поднять заново
 ./infra/prod-up.sh --rebuild                         # пересобрать образы без кэша
 ```
@@ -63,6 +63,25 @@ docker compose -f infra/docker-compose.prod.yml exec api printenv OpenApi__Enabl
 # включить: добавить в docker-compose.prod.yml в environment: OpenApi__Enabled: "true"
 ```
 
+## CD (только VPS)
+
+Локально ничего не нужно: dev — `docker compose -f infra/docker-compose.dev.yml up`,
+репетиция прода — `./infra/prod-up.sh` (собирает образы на месте).
+
+На VPS деплой запускается кнопкой **Actions → Deploy** (`workflow_dispatch` в Environment
+`production`, требует подтверждения). Workflow делает на сервере: `git reset --hard` → `pull`
+образов из GHCR → `up -d --wait` → smoke (`/`, health, версия = sha, mock → 404).
+
+Что должно быть на сервере один раз:
+
+```bash
+git clone https://github.com/maks-march/Memorandum /opt/memorandum
+cd /opt/memorandum && ./infra/prod-up.sh      # создаст infra/.env с паролем БД
+docker login ghcr.io                           # PAT classic, read:packages
+```
+
+Секреты workflow: `DEPLOY_HOST`, `DEPLOY_USER`, `SSH_KEY` (ed25519).
+
 ## Файлы
 
 ```
@@ -73,6 +92,6 @@ infra/
 ├─ web.Dockerfile             build Vite → nginx + статика
 ├─ nginx/default.conf.template  SPA, /api → api:8080, /mock → 404, ACME
 ├─ nginx/snippets/proxy.conf  заголовки прокси
-├─ prod-up.sh                 запуск прода с нуля (сборка, .env, ожидание health)
-└─ .env.example               переменные для prod
+├─ prod-up.sh                 ручной запуск прода с нуля (сборка, .env, ожидание health)
+└─ .env.example               переменные для prod (в т.ч. образы GHCR)
 ```

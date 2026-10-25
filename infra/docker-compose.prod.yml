@@ -33,9 +33,13 @@ services:
     # порт наружу не публикуем — только внутри сети
 
   api:
+    # Образ из GHCR (деплой на VPS). build — для локального запуска через prod-up.sh.
+    image: ${API_IMAGE:-ghcr.io/maks-march/memorandum-api}:${IMAGE_TAG:-stable}
     build:
       context: ..
       dockerfile: infra/api.Dockerfile
+      args:
+        SOURCE_REVISION: ${SOURCE_REVISION:-local}
     restart: unless-stopped
     depends_on:
       db:
@@ -61,15 +65,18 @@ services:
       - no-new-privileges:true
 
   web:
+    image: ${WEB_IMAGE:-ghcr.io/maks-march/memorandum-web}:${IMAGE_TAG:-stable}
     build:
       context: ..
       dockerfile: infra/web.Dockerfile
+      args:
+        APP_VERSION: ${SOURCE_REVISION:-local}
     restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - "80:80"
+      - "${WEB_PORT:-80}:80"
       # - "443:443"        # включить вместе с server-блоком 443 (см. nginx/default.conf.template)
     volumes:
       - certs:/etc/letsencrypt:ro

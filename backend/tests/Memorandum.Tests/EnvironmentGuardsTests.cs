@@ -64,7 +64,7 @@ public sealed class EnvironmentGuardsTests
                 ["ConnectionStrings:Postgres"] = "Host=localhost;Database=memorandum;Username=u;Password=p",
                 ["AllowedHosts"] = "memorandum.example.ru",
                 ["Mock:Enabled"] = "false",
-            },
+                },
         };
 
         var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());

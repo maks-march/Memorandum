@@ -22,17 +22,17 @@ docker compose -f infra/docker-compose.prod.yml up -d --build
 
 ### CI
 
-Только проверки на PR — ничего не публикуется и не разворачивается (CD будет отдельным этапом).
+Проверки на PR. Ничего не публикуется и не разворачивается — этим занимается Release и Deploy (см. ниже).
 
 `.github/workflows/ci.yml`, 5 параллельных джобов:
 
 | Джоб | Что проверяет |
 |---|---|
-| `backend` | `restore` → `build -c Release` → 15 интеграционных тестов → `dotnet list package --vulnerable` → trx в артефакты |
+| `backend` | `restore` → `build -c Release` → 18 интеграционных тестов → `dotnet list package --vulnerable` → trx в артефакты |
 | `frontend` | `npm ci` → `npm run build` (`tsc -b` + `vite build`, одна проверка типов) |
 | `actionlint` | линт самих workflow-файлов |
-| `infra` | `shellcheck` для скриптов, `docker compose config` со всеми профилями (`tls`, `tools`), `nginx -t` на шаблоне после `envsubst` |
-| `smoke` | собирает **реальные образы** и поднимает прод-стек: ждёт `/api/health`, проверяет `Production`, 404 на mock, версию в URL, security-заголовки на HTML и ассетах |
+| `infra` | `shellcheck` (все скрипты), `docker compose config` со всеми профилями (`tls`, `tools`), `nginx -t` на шаблоне после `envsubst`, **сборка обоих образов без push** и запуск api-образа с прод-конфигом (health 200, без `AllowedHosts` — падение) |
+| `smoke` | собирает **реальные образы** и поднимает прод-стек: health, версия в URL, 404 на mock, security-заголовки на HTML и ассетах |
 
 Зависимости обновляет Dependabot (`.github/dependabot.yml`): nuget, npm — еженедельно, actions и
 docker — ежемесячно.
@@ -63,6 +63,21 @@ Bypass-list пуст — обойти не может никто. Разреше
 
 Порядок важен: сначала пушить и дождаться первого зелёного прогона CI, **потом** применять
 ruleset — иначе required-чеки ещё не известны GitHub и merge будет заблокирован навсегда.
+
+### CD — только прод
+
+Разработка деплоя не требует: `docker compose -f infra/docker-compose.dev.yml up` или
+`./infra/prod-up.sh` для локальной репетиции прода.
+
+Для VPS два workflow:
+
+| Что | Файл | Триггер |
+|---|---|---|
+| Образы в GHCR (`memorandum-api`, `memorandum-web`, теги `sha-<7>` + `stable`) | `release.yml` | push в `main` |
+| Деплой на VPS: `git reset` → `compose pull` → `up --wait` → smoke, по кнопке с подтверждением | `deploy.yml` | вручную |
+
+Версия сборки — короткий git sha: `/api/health` отдаёт `"version":"1.0.0+a3f9c21"`, и деплой
+проверяет, что на сервере именно эта сборка. Секреты сервера — `infra/.env` (chmod 600).
 
 ### Тесты
 

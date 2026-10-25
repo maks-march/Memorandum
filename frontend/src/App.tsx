@@ -4,6 +4,9 @@ import { fetchHealth, type HealthResult } from './api';
 const isDev = import.meta.env.DEV;
 const proxyTarget = import.meta.env.VITE_API_TARGET ?? 'http://localhost:5000';
 
+/** Версия статики: в CI подставляется короткий git sha, локально — "local". */
+const appVersion = import.meta.env.VITE_APP_VERSION ?? 'local';
+
 export default function App() {
   const [health, setHealth] = useState<HealthResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -43,6 +46,9 @@ export default function App() {
         <div className="badges">
           <span className={`badge ${isDev ? 'badge-dev' : 'badge-prod'}`}>
             {isDev ? 'DEV (vite)' : 'PROD (static build)'}
+          </span>
+          <span className="badge" title="версия сборки статики (git sha)">
+            сборка: {appVersion}
           </span>
           {health?.ok && (
             <span className={`badge ${isMock ? 'badge-mock' : 'badge-api'}`}>

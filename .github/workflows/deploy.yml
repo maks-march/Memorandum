@@ -1,0 +1,113 @@
+name: Deploy
+
+# Деплой на VPS по кнопке. Dev не деплоится через CI: локально хватает
+# docker compose (infra/docker-compose.dev.yml) или ./infra/prod-up.sh.
+#
+# На сервере должны быть: clone репозитория и infra/.env (создаётся один раз
+# через ./infra/prod-up.sh или копированием infra/.env.example), плюс
+# выполненный docker login ghcr.io.
+#
+# Требуется Environment `production` с обязательным подтверждением.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Короткий git sha для деплоя (по умолчанию — SHA запуска)
+        type: string
+        required: false
+      path:
+        description: Каталог с clone репозитория на сервере
+        type: string
+        default: /opt/memorandum
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: deploy-vps
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+      DEPLOY_PATH: ${{ inputs.path }}
+      EXPECT_SHA: ${{ inputs.sha }}
+
+    steps:
+      - name: Проверка доступности сервера
+        id: probe
+        run: |
+          set -euo pipefail
+
+          if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_USER" ] || [ -z "$SSH_KEY" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "**SKIPPED** — не заданы секреты DEPLOY_HOST / DEPLOY_USER / SSH_KEY" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          if ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o ConnectTimeout=5 \
+                 -o StrictHostKeyChecking=accept-new \
+                 "$DEPLOY_USER@$DEPLOY_HOST" 'docker version' >/dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "**SKIPPED (offline)** — $DEPLOY_USER@$DEPLOY_HOST не отвечает по SSH за 5 с" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Деплой
+        if: steps.probe.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+
+          sha="$(printf '%s' "${EXPECT_SHA:-$GITHUB_SHA}" | cut -c1-7)"
+
+          remote=$(cat <<REMOTE
+          set -eu
+          cd '$DEPLOY_PATH'
+          git fetch --quiet origin
+          git reset --hard --quiet '$GITHUB_SHA'
+
+          export IMAGE_TAG="sha-$sha"
+          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env pull api web
+          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env up -d --remove-orphans --wait --wait-timeout 120
+
+          # smoke: статика, health, окружение, версия, mock
+          base="http://localhost"
+          test "\$(curl -s -o /dev/null -w '%{http_code}' "\$base/")" = "200"
+          health="\$(curl -fsS "\$base/api/health")"
+          echo "\$health"
+          printf '%s' "\$health" | grep -q '"environment":"Production"'
+          # версия в health — git sha этой сборки (порт 80 по умолчанию; при другом — задайте WEB_PORT в .env и порт в compose)
+          printf '%s' "\$health" | grep -q "$sha"
+          test "\$(curl -s -o /dev/null -w '%{http_code}' "\$base/mock/api/health")" = "404"
+          echo "smoke ok"
+          REMOTE
+          )
+
+          set +e
+          out="$(ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o ConnectTimeout=10 \
+                   -o StrictHostKeyChecking=accept-new \
+                   "$DEPLOY_USER@$DEPLOY_HOST" "bash -s" <<< "$remote" 2>&1)"
+          code=$?
+          set -e
+          printf '%s\n' "$out"
+
+          if [ "$code" -ne 0 ]; then
+            echo "**DEPLOY FAILED** — \`vps\` (код $code), подробности в логе" >> "$GITHUB_STEP_SUMMARY"
+            exit "$code"
+          fi
+
+          echo "**DEPLOYED** — vps · \`sha-$sha\`" >> "$GITHUB_STEP_SUMMARY"

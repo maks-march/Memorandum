@@ -14,7 +14,7 @@
 #    ./infra/prod-up.sh --tls            # + certbot выпускает сертификат (HTTPS включается вручную)
 #    ./infra/prod-up.sh --reset          # снести данные (БД, сертификаты) и поднять заново
 #    ./infra/prod-up.sh --rebuild        # принудительно пересобрать образы
-#    APP_HOST=pp7.example.ru ./infra/prod-up.sh
+#    APP_HOST=memorandum.example.ru ./infra/prod-up.sh
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -131,7 +131,7 @@ else
     "$ENV_EXAMPLE" > "$ENV_FILE"
   chmod 600 "$ENV_FILE"
   c_ok "создан $ENV_FILE (пароль БД сгенерирован)"
-  c_warn "securely сохраните пароль: grep POSTGRES_PASSWORD $ENV_FILE"
+  c_warn "securely сохраните секрет: grep POSTGRES_PASSWORD $ENV_FILE"
 
   set -a
   # shellcheck source=/dev/null
@@ -151,6 +151,10 @@ c_ok "APP_HOST=${APP_HOST:-localhost}"
 
 # ── 3. сборка и запуск ───────────────────────────────────────────────────────
 step "3/5 Сборка и запуск"
+
+# локальная сборка не должна занимать тег из реестра: образ получит имя :local
+export IMAGE_TAG="${IMAGE_TAG:-local}"
+export SOURCE_REVISION="${SOURCE_REVISION:-local}"
 
 COMPOSE=(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
 

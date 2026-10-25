@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Reflection;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,7 +10,7 @@ namespace Memorandum.Api.Controllers;
 [Tags("Health")]
 public sealed class HealthController(IConfiguration config, IHostEnvironment env) : ControllerBase
 {
-    /// <summary>Диагностический health: окружение, провайдер БД, версия сборки.</summary>
+    /// <summary>Диагностический health: окружение, провайдер БД, версия сборки (в ней — git sha).</summary>
     /// <response code="200">Сервис работает.</response>
     [HttpGet]
     [ProducesResponseType<HealthResponse>(StatusCodes.Status200OK)]
@@ -22,7 +20,7 @@ public sealed class HealthController(IConfiguration config, IHostEnvironment env
             Mode: "api",
             Environment: env.EnvironmentName,
             Database: config["Database:Provider"] ?? "Sqlite",
-            Version: Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0",
+            Version: BuildInfo.Version,
             Machine: Environment.MachineName,
             TimeUtc: DateTime.UtcNow));
 }
@@ -31,7 +29,7 @@ public sealed class HealthController(IConfiguration config, IHostEnvironment env
 /// <param name="Mode">"api" — реальный бэкенд, "mock" — заглушка.</param>
 /// <param name="Environment">Development / Production.</param>
 /// <param name="Database">Sqlite (локально) или Postgres (прод).</param>
-/// <param name="Version">Версия сборки API.</param>
+/// <param name="Version">Версия сборки API: семантическая версия + короткий git sha (<c>1.0.0+abc1234</c>).</param>
 /// <param name="Machine">Имя машины/контейнера — видно, что ответил именно api, а не мок.</param>
 /// <param name="TimeUtc">Момент ответа, UTC.</param>
 public sealed record HealthResponse(

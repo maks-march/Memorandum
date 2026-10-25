@@ -119,6 +119,50 @@ jobs:
           docker compose -f infra/docker-compose.prod.yml --env-file infra/.env \
             --profile tls --profile tools config -q
 
+      - name: Сборка образов (без push)
+        run: |
+          docker build -f infra/api.Dockerfile -t memorandum-api:ci .
+          docker build -f infra/web.Dockerfile -t memorandum-web:ci .
+
+      - name: api-образ отвечает на health в прод-конфиге
+        run: |
+          set -eu
+          docker run -d --name api-ci -p 18080:8080 \
+            -e AllowedHosts=localhost \
+            -e Database__Provider=Postgres \
+            -e ConnectionStrings__Postgres="Host=db;Port=5432;Database=x;Username=u;Password=p" \
+            -e Proxy__TrustedNetworks__0=172.16.0.0/12 \
+            memorandum-api:ci
+
+          for i in $(seq 1 30); do
+            if curl -fsS -m 2 -o /dev/null http://localhost:18080/api/health; then
+              echo "health ответил за $((i * 2)) с"
+              break
+            fi
+            sleep 2
+          done
+
+          body="$(curl -fsS http://localhost:18080/api/health)"
+          echo "$body"
+          echo "$body" | grep -q '"environment":"Production"'
+          docker rm -f api-ci
+
+      - name: api-образ без AllowedHosts падает (fail-fast на артефакте)
+        run: |
+          set -eu
+          if docker run --name api-nohosts \
+               -e Database__Provider=Postgres \
+               -e ConnectionStrings__Postgres="Host=db;Port=5432;Database=x;Username=u;Password=p" \
+               -e Proxy__TrustedNetworks__0=172.16.0.0/12 \
+               memorandum-api:ci; then
+            echo "контейнер стартовал без AllowedHosts — fail-fast не работает"
+            docker rm -f api-nohosts || true
+            exit 1
+          fi
+          docker rm -f api-nohosts || true
+          echo "контейнер завершился с ошибкой, как и требовалось"
+
+
       - name: nginx -t на шаблоне после envsubst
         run: |
           docker run --rm --add-host api:127.0.0.1 -v "$PWD/infra/nginx:/tpl:ro" nginx:1.27-alpine \
@@ -157,12 +201,15 @@ jobs:
           set -eux
           # версия — сегмент URL
           curl -fsS http://localhost/api/v1/system/info | tee /dev/stderr | grep -q '"apiVersions"'
-          # версионированный путь без сегмента версии не маршрутизируется
+          # путь без сегмента версии не маршрутизируется
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/api/system/info)" = "404"
           # чужой X-Api-Version игнорируется — health остаётся 200
           test "$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Api-Version: 9.9' http://localhost/api/health)" = "200"
-          # в проде окружение Production, mock запрещён
-          curl -fsS http://localhost/api/health | grep -q '"environment":"Production"'
+          # в проде окружение Production, mock запрещён, версия сборки не пустая
+          health="$(curl -fsS http://localhost/api/health)"
+          echo "$health"
+          echo "$health" | grep -q '"environment":"Production"'
+          echo "$health" | grep -q '"version":"[^"]'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/mock/api/health)" = "404"
 
       - name: Security-заголовки на HTML и ассетах
