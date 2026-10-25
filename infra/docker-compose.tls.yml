@@ -1,0 +1,17 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  TLS поверх прод-стека. Подключается только когда домен уже указывает на сервер:
+#
+#    docker compose -f infra/docker-compose.prod.yml \
+#                   -f infra/docker-compose.tls.yml --profile tls up -d
+#
+#  Без этого файла стек работает по HTTP и сертификат ему не нужен.
+#  Включает: порт 443 и server-блок 443 в nginx (шаблон монтируется в
+#  /etc/nginx/templates, envsubst подставит ${APP_HOST} при старте).
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  web:
+    ports:
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/tls/tls.conf.template:/etc/nginx/templates/tls.conf.template:ro

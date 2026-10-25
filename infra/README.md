@@ -44,13 +44,25 @@ docker compose -f infra/docker-compose.prod.yml up -d --build
 curl -fsS http://localhost/api/health
 ```
 
-TLS (нужен домен в `APP_HOST`, A-запись на сервер):
+TLS — отдельный файл `infra/docker-compose.tls.yml`, подключается поверх прод-стека.
+Нужен домен в `APP_HOST` и A-запись на сервер.
 
 ```bash
-docker compose -f infra/docker-compose.prod.yml --profile tls up -d
-# после выпуска сертификата — раскомментировать блок 443 в infra/nginx/default.conf.template
-# и перезапустить web: docker compose -f infra/docker-compose.prod.yml restart web
+# одной командой: certbot выпустит сертификат, затем web перезапустится на 443
+APP_HOST=example.ru ./infra/prod-up.sh --tls
+
+# вручную
+docker compose -f infra/docker-compose.prod.yml -f infra/docker-compose.tls.yml \
+  --env-file infra/.env --profile tls up -d
+docker compose -f infra/docker-compose.prod.yml logs certbot    # проверить выпуск
+docker compose -f infra/docker-compose.prod.yml \
+  -f infra/docker-compose.tls.yml --env-file infra/.env restart web
 ```
+
+Override добавляет порт 443 и монтирует `infra/nginx/tls/tls.conf.template` в
+`/etc/nginx/templates` — server-блок 443 появляется в конфиге только вместе с ним.
+Без override стек работает по HTTP и сертификат ему не нужен, поэтому деплой из CI
+(без TLS) ничего не ломает. HSTS есть только в HTTPS-блоке.
 
 Отличия прода (проверяется автоматически при старте API):
 - `Database:Provider` обязан быть `Postgres`, иначе приложение не стартует;
@@ -101,6 +113,8 @@ infra/
 ├─ api.Dockerfile             publish API, non-root
 ├─ web.Dockerfile             build Vite → nginx + статика
 ├─ nginx/default.conf.template  SPA, /api → api:8080, /mock → 404, ACME
+├─ docker-compose.tls.yml     TLS поверх прода: порт 443 + server-блок 443
+├─ nginx/tls/tls.conf.template  server-блок 443 (монтируется только с tls.yml)
 ├─ nginx/snippets/proxy.conf  заголовки прокси
 ├─ prod-up.sh                 вспомогательный: локальный запуск прода (проверка зависимостей, .env, сборка)
 └─ .env.example               переменные для prod (в т.ч. образы GHCR)

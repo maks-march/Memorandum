@@ -25,7 +25,8 @@ services:
     ports:
       - "5000:5000"                          # Scalar + OpenAPI доступны снаружи контейнера
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
+      # 127.0.0.1, а не localhost: имя может резолвиться в ::1, а Kestrel слушает 0.0.0.0
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/api/health"]
       interval: 15s
       timeout: 5s
       retries: 10

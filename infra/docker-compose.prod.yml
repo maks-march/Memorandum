@@ -23,10 +23,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-memorandum} -d ${POSTGRES_DB:-memorandum}"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:-memorandum} -d ${POSTGRES_DB:-memorandum}"]
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 15s
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
@@ -55,7 +56,8 @@ services:
       # доверяем X-Forwarded-* только от nginx из этой docker-сети (см. networks ниже)
       Proxy__TrustedNetworks__0: "172.28.0.0/16"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
+      # 127.0.0.1, а не localhost: имя может резолвиться в ::1, а Kestrel слушает 0.0.0.0
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/health"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -77,18 +79,19 @@ services:
         condition: service_healthy
     ports:
       - "${WEB_PORT:-80}:80"
-      # - "443:443"        # включить вместе с server-блоком 443 (см. nginx/default.conf.template)
     volumes:
+      # сертификаты нужны, только если включён TLS (infra/docker-compose.tls.yml)
       - certs:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
     environment:
       APP_HOST: ${APP_HOST:-localhost}
     healthcheck:
       # проверяем статику: nginx не должен становиться unhealthy из-за api
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 30s
       timeout: 5s
       retries: 5
+      start_period: 15s
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
