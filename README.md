@@ -34,8 +34,9 @@ docker compose -f infra/docker-compose.prod.yml up -d --build
 | `infra` | `shellcheck` (все скрипты), `docker compose config` со всеми профилями (`tls`, `tools`), `nginx -t` на шаблоне после `envsubst`, **сборка обоих образов без push** и запуск api-образа с прод-конфигом (health 200, без `AllowedHosts` — падение) |
 | `smoke` | собирает **реальные образы** и поднимает прод-стек: health, версия в URL, 404 на mock, security-заголовки на HTML и ассетах |
 
-Зависимости обновляет Dependabot (`.github/dependabot.yml`): nuget, npm — еженедельно, actions и
-docker — ежемесячно.
+Зависимости обновляет Dependabot (`.github/dependabot.yml`): nuget и npm — еженедельно, actions и
+docker — ежемесячно. Minor и patch приходят одним PR на экосистему, мажоры — отдельными.
+`Microsoft.OpenApi >= 3.0.0` в игноре: `Microsoft.AspNetCore.OpenApi 10.0.x` требует `[2.12.2, 3.0.0)`.
 
 ### Защита ветки main
 
@@ -76,10 +77,14 @@ ruleset — иначе required-чеки ещё не известны GitHub и 
 | Что | Файл | Триггер |
 |---|---|---|
 | Образы в GHCR (`memorandum-api`, `memorandum-web`, теги `sha-<7>` + `stable`) | `release.yml` | push в `main` |
-| Деплой на VPS: проверка и установка зависимостей (`git`, `curl`, `docker`, compose v2) → `git reset` → `compose pull` → `up --wait` → smoke | `deploy.yml` | вручную |
+| Деплой на VPS: зависимости (только недостающие) → `docker login` GHCR → `git reset` на тот же sha, что в теге → `compose pull` → `up --wait` → smoke → запись `.deployed_tag`; при провале smoke — откат | `deploy.yml` | вручную |
 
 Версия сборки — короткий git sha: `/api/health` отдаёт `"version":"1.0.0+a3f9c21"`, и деплой
 проверяет, что на сервере именно эта сборка. Секреты сервера — `infra/.env` (chmod 600).
+
+Секреты workflow: `DEPLOY_HOST`, `DEPLOY_USER`, `SSH_KEY`, `GHCR_USER`, `GHCR_TOKEN`
+(PAT classic, `read:packages`). Без `GHCR_TOKEN` шаг логина пропускается — годится,
+если пакеты публичные или логин на сервере сделан руками.
 
 ### Тесты
 

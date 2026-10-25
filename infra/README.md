@@ -71,23 +71,26 @@ docker compose -f infra/docker-compose.prod.yml exec api printenv OpenApi__Enabl
 На VPS деплой запускается кнопкой **Actions → Deploy** (`workflow_dispatch` в Environment
 `production`, требует подтверждения). Workflow делает на сервере:
 
-1. **зависимости** — проверяет `git`, `curl`, `docker`, `docker compose` и доставляет
-   недостающие через `apt` (нужен `sudo` без пароля), включает демон, добавляет пользователя
-   в группу `docker`;
-2. `git reset --hard` на sha запуска;
-3. `pull` образов из GHCR → `up -d --wait` → smoke (`/`, health, версия = sha, mock → 404).
+1. **зависимости** — проверяет `git`, `curl`, `docker`, `docker compose`; ставит только
+   недостающее (тогда нужен `sudo` без пароля), включает демон, добавляет в группу `docker`;
+2. `docker login ghcr.io` — если заданы `GHCR_USER` и `GHCR_TOKEN`;
+3. `git reset --hard` на **тот же** sha, что уходит в тег образа;
+4. `pull` → `up -d --wait` → smoke (`/`, health, `Production`, версия = sha, mock → 404);
+5. успех — `infra/.deployed_tag` и `infra/.previous_tag`; провал smoke — откат на предыдущий тег
+   и повторный smoke.
 
-`prod-up.sh` — вспомогательный и зависимостей не ставит: только проверяет и подсказывает.
+Порт для smoke берётся из `WEB_PORT` в `infra/.env`. `prod-up.sh` — вспомогательный:
+зависимостей не ставит, только проверяет и подсказывает.
 
 Что должно быть на сервере один раз:
 
 ```bash
 git clone https://github.com/maks-march/Memorandum /opt/memorandum
-cd /opt/memorandum && ./infra/prod-up.sh      # создаст infra/.env с паролем БД
+cd /opt/memorandum && cp infra/.env.example infra/.env && chmod 600 infra/.env
 docker login ghcr.io                           # PAT classic, read:packages
 ```
 
-Секреты workflow: `DEPLOY_HOST`, `DEPLOY_USER`, `SSH_KEY` (ed25519).
+Секреты workflow: `DEPLOY_HOST`, `DEPLOY_USER`, `SSH_KEY` (ed25519), `GHCR_USER`, `GHCR_TOKEN`.
 
 ## Файлы
 

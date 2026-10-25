@@ -6,33 +6,55 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    rebase-strategy: auto
     commit-message:
       prefix: nuget
     groups:
-      dotnet:
+      # minor + patch — одним PR; мажоры приходят отдельными PR
+      dotnet-minor:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      # ASP.NET Core OpenAPI 10.0.x требует Microsoft.OpenApi [2.12.2, 3.0.0) —
+      # мажор 3.x несовместим, пока не обновится сам Microsoft.AspNetCore.OpenApi
+      - dependency-name: Microsoft.OpenApi
+        versions: [">=3.0.0"]
 
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    rebase-strategy: auto
     commit-message:
       prefix: npm
     groups:
-      frontend:
+      frontend-minor:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 2
+    rebase-strategy: auto
     commit-message:
       prefix: ci
+    groups:
+      actions-minor:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: docker
     directory: /infra
     schedule:
       interval: monthly
+    open-pull-requests-limit: 2
+    rebase-strategy: auto
     commit-message:
       prefix: docker
+    groups:
+      docker-minor:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]

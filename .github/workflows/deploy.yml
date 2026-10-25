@@ -3,8 +3,8 @@ name: Deploy
 # Деплой на VPS по кнопке. Dev не деплоится через CI: локально хватает
 # docker compose (infra/docker-compose.dev.yml) или ./infra/prod-up.sh.
 #
-# Workflow сам проверяет зависимости на сервере и доставляет недостающие
-# (git, curl, docker, compose v2) — prod-up.sh этого не делает и не должен.
+# Порядок: SSH → зависимости (ставятся, только если чего-то нет) → git login/pull →
+# up --wait → smoke → запись тегов; при провале smoke — откат на предыдущий тег.
 #
 # Требуется Environment `production` с обязательным подтверждением.
 
@@ -38,6 +38,8 @@ jobs:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
       DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
       SSH_KEY: ${{ secrets.SSH_KEY }}
+      GHCR_USER: ${{ secrets.GHCR_USER }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
       DEPLOY_PATH: ${{ inputs.path }}
       EXPECT_SHA: ${{ inputs.sha }}
 
@@ -66,25 +68,31 @@ jobs:
             echo "**SKIPPED (offline)** — $DEPLOY_USER@$DEPLOY_HOST не отвечает по SSH за 5 с" >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      # Зависимости ставит CD, а не локальный скрипт: сервер — единственное место,
-      # где состав пакетов должен быть предсказуем.
-      - name: Зависимости на сервере
+      - name: Деплой
         if: steps.probe.outputs.available == 'true'
         run: |
           set -euo pipefail
 
+          # один и тот же sha идёт и в тег образа, и в git reset — иначе на сервере
+          # окажется старый образ с новыми файлами
+          rev="$(printf '%s' "${EXPECT_SHA:-$GITHUB_SHA}" | cut -c1-12)"
+
           ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o ConnectTimeout=10 \
               -o StrictHostKeyChecking=accept-new \
-              "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' <<'REMOTE'
+              "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' -- \
+              "$DEPLOY_PATH" "$rev" "$GHCR_USER" "$GHCR_TOKEN" <<'REMOTE'
           set -eu
 
+          DEPLOY_PATH="$1"
+          REV="$2"
+          GHCR_USER="${3:-}"
+          GHCR_TOKEN="${4:-}"
+
+          TAG="sha-$(printf '%s' "$REV" | cut -c1-7)"
+
+          # ── права: sudo нужен только если чего-то не хватает ──────────────
           SUDO=""
           [ "$(id -u)" -eq 0 ] || SUDO="sudo -n"
-
-          if ! $SUDO true 2>/dev/null; then
-            echo "нет sudo без пароля — установить зависимости не смогу" >&2
-            exit 1
-          fi
 
           missing=""
           for c in git curl; do
@@ -94,76 +102,99 @@ jobs:
           docker compose version >/dev/null 2>&1 || missing="$missing compose"
 
           if [ -n "$missing" ]; then
+            if ! $SUDO true 2>/dev/null; then
+              echo "не хватает:$missing и нет sudo без пароля — установить не смогу" >&2
+              exit 1
+            fi
             echo "не хватает:$missing — устанавливаю"
             $SUDO apt-get update -qq
             $SUDO apt-get install -y -qq ca-certificates curl git docker.io
-            # compose v2: имя пакета зависит от источника (Ubuntu — docker-compose-v2,
-            # официальный репозиторий Docker — docker-compose-plugin)
             $SUDO apt-get install -y -qq docker-compose-v2 \
               || $SUDO apt-get install -y -qq docker-compose-plugin \
-              || echo "compose не установился — проверьте вручную"
+              || $SUDO apt-get install -y -qq docker-compose
+            $SUDO systemctl enable --now docker >/dev/null 2>&1 || true
+            $SUDO usermod -aG docker "$(id -un)" >/dev/null 2>&1 || true
           else
-            echo "зависимости на месте"
+            echo "зависимости на месте, sudo не нужен"
           fi
 
-          $SUDO systemctl enable --now docker >/dev/null 2>&1 || true
-          $SUDO usermod -aG docker "$(id -un)" >/dev/null 2>&1 || true
-
-          echo "--- версии ---"
-          git --version
-          curl --version | head -1
-          docker --version
-          docker compose version
-          REMOTE
-
-      - name: Деплой
-        if: steps.probe.outputs.available == 'true'
-        run: |
-          set -euo pipefail
-
-          sha="$(printf '%s' "${EXPECT_SHA:-$GITHUB_SHA}" | cut -c1-7)"
-
-          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o ConnectTimeout=10 \
-              -o StrictHostKeyChecking=accept-new \
-              "$DEPLOY_USER@$DEPLOY_HOST" \
-              'bash -s' -- "$DEPLOY_PATH" "$GITHUB_SHA" "sha-$sha" <<'REMOTE'
-          set -eu
-
-          DEPLOY_PATH="$1"
-          REVISION="$2"
-          TAG="$3"
-
-          # пользователь мог попасть в группу docker только что — в текущей сессии её ещё нет
+          # docker без sudo; если группу docker выдали только что — через sudo
           if docker info >/dev/null 2>&1; then
             COMPOSE="docker compose"
+            DOCKER="docker"
           else
             COMPOSE="sudo -n docker compose"
+            DOCKER="sudo -n docker"
           fi
 
           cd "$DEPLOY_PATH"
 
           if [ ! -f infra/.env ]; then
-            echo "нет infra/.env на сервере — создайте один раз: ./infra/prod-up.sh (или cp infra/.env.example infra/.env && chmod 600)" >&2
+            echo "нет infra/.env — создайте один раз: cp infra/.env.example infra/.env && chmod 600 infra/.env" >&2
             exit 1
           fi
 
+          # ── GHCR: приватные пакеты ───────────────────────────────────────
+          if [ -n "$GHCR_TOKEN" ]; then
+            printf '%s' "$GHCR_TOKEN" | $DOCKER login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null
+            echo "ghcr.io: логин выполнен"
+          else
+            echo "GHCR_TOKEN не задан — считаю, что пакеты публичные или логин уже сделан"
+          fi
+
+          # ── код ──────────────────────────────────────────────────────────
           git fetch --quiet origin
-          git reset --hard --quiet "$REVISION"
+          git reset --hard --quiet "$REV"
+          echo "код на $(git rev-parse --short HEAD)"
 
-          export IMAGE_TAG="$TAG"
-          $COMPOSE -f infra/docker-compose.prod.yml --env-file infra/.env pull api web
-          $COMPOSE -f infra/docker-compose.prod.yml --env-file infra/.env \
-            up -d --remove-orphans --wait --wait-timeout 120
+          web_port="$(grep -E '^WEB_PORT=' infra/.env | tail -1 | cut -d= -f2 || true)"
+          BASE="http://localhost:${web_port:-80}"
 
-          # smoke: статика, health, окружение, версия сборки, mock
-          base="http://localhost"
-          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/")" = "200"
-          health="$(curl -fsS "$base/api/health")"
-          echo "$health"
-          printf '%s' "$health" | grep -q '"environment":"Production"'
-          printf '%s' "$health" | grep -q "${TAG#sha-}"
-          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/mock/api/health")" = "404"
-          echo "smoke ok"
+          PREVIOUS=""
+          [ -f infra/.deployed_tag ] && PREVIOUS="$(cat infra/.deployed_tag)"
+
+          smoke() {
+            expected="${1:-}"
+            test "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/")" = "200" || return 1
+            health="$(curl -fsS "$BASE/api/health")" || return 1
+            echo "$health"
+            printf '%s' "$health" | grep -q '"environment":"Production"' || return 1
+            test "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/mock/api/health")" = "404" || return 1
+            if [ -n "$expected" ]; then
+              printf '%s' "$health" | grep -q "$expected" || return 1
+            fi
+            return 0
+          }
+
+          deploy_tag() {
+            export IMAGE_TAG="$1"
+            $COMPOSE -f infra/docker-compose.prod.yml --env-file infra/.env pull api web
+            $COMPOSE -f infra/docker-compose.prod.yml --env-file infra/.env \
+              up -d --remove-orphans --wait --wait-timeout 120
+          }
+
+          if deploy_tag "$TAG" && smoke "${TAG#sha-}"; then
+            printf '%s\n' "$TAG" > infra/.deployed_tag
+            printf '%s\n' "$PREVIOUS" > infra/.previous_tag
+            echo "задеплоено: $TAG (предыдущий: ${PREVIOUS:-нет})"
+            echo "**DEPLOYED** — vps · \`$TAG\`"
+            exit 0
+          fi
+
+          echo "smoke после деплоя не прошёл" >&2
+
+          if [ -n "$PREVIOUS" ] && [ "$PREVIOUS" != "$TAG" ]; then
+            echo "откат на $PREVIOUS" >&2
+            if deploy_tag "$PREVIOUS" && smoke ""; then
+              echo "**ROLLED BACK** — vps · откат на \`$PREVIOUS\`"
+              exit 1
+            fi
+            echo "**ROLLBACK FAILED** — откат на \`$PREVIOUS\` тоже не проходит smoke" >&2
+            exit 1
+          fi
+
+          echo "**DEPLOY FAILED** — откатываться не на что (первый деплой)" >&2
+          exit 1
           REMOTE
 
       - name: Итог
