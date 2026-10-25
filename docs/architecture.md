@@ -20,8 +20,8 @@
 
 | Контейнер | Образ | Роль | Порты | Состояние |
 |---|---|---|---|---|
-| `nginx` | `nginx:1.27-alpine` | TLS-терминация, раздача SPA, reverse proxy + балансировка `api`, лимиты тела/рейтов, gzip | 80, 443 → наружу | конфиг в git, сертификаты в volume |
-| `api` ×1..N | `mcr.microsoft.com/dotnet/aspnet:10.0` (multi-stage из `sdk:10.0` + `node:22`) | REST API + XML-ядро; SPA-сборка лежит в `wwwroot` (используется только в dev, в prod отдаёт nginx) | 8080 (внутр.) | stateless ⇒ можно `--scale api=2` |
+| `nginx` | `nginx:1.29-alpine` | TLS-терминация, раздача SPA, reverse proxy + балансировка `api`, лимиты тела/рейтов, gzip | 80, 443 → наружу | конфиг в git, сертификаты в volume |
+| `api` ×1..N | `mcr.microsoft.com/dotnet/aspnet:10.0` (multi-stage из `sdk:10.0` + `node:26`) | REST API + XML-ядро; SPA-сборка лежит в `wwwroot` (используется только в dev, в prod отдаёт nginx) | 8080 (внутр.) | stateless ⇒ можно `--scale api=2` |
 | `db` | `postgres:17-alpine` | все структурированные данные, JSONB-модель документов, XSD-комплекты | 5432 (внутр.) | volume `pgdata` |
 | `backup` | `postgres:17-alpine` (cron в контейнере или host cron) | `pg_dump -Fc` + tar `/data` → volume `backups` | — | — |
 | *(future)* `redis` | `redis:7-alpine` | кэш `XmlSchemaSet`, сессии/rate-limit, hot-данные | 6379 (внутр.) | AOF |
