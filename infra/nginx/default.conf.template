@@ -1,5 +1,5 @@
 # Шаблон nginx для прода. envsubst подставит ${APP_HOST} при старте контейнера.
-# Включает: раздачу SPA, прокси /api, запрет /mock, ACME-челлендж, healthz,
+# Включает: раздачу SPA, прокси /api, запрет /mock, ACME-челлендж,
 # gzip и базовые security-заголовки.
 
 upstream api_upstream {
@@ -31,39 +31,43 @@ server {
         application/xml application/xml+rss image/svg+xml;
 
     # ── security-заголовки ───────────────────────────────────────────────────
+    # add_header не наследуется в location, где есть свой add_header, поэтому
+    # snippet подключён в каждом location (а не только на уровне server).
     # HSTS намеренно не включён: он безопасен только при работающем HTTPS.
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "DENY" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+    include /etc/nginx/snippets/security-headers.conf;
 
     # ACME-челлендж (нужен и без TLS-профиля — не мешает)
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
+        include /etc/nginx/snippets/security-headers.conf;
     }
 
     # mock-эндпоинты в проде запрещены на уровне nginx
     location /mock/ {
+        include /etc/nginx/snippets/security-headers.conf;
         return 404;
     }
 
     # API
     location /api/ {
         limit_req zone=api_zone burst=60 nodelay;
-        proxy_pass http://api_upstream;          # URI не меняем: контроллеры уже на /api/...
+        proxy_pass http://api_upstream;          # URI не меняем: версия в пути (/api/v1/...)
         include /etc/nginx/snippets/proxy.conf;
+        include /etc/nginx/snippets/security-headers.conf;
     }
 
     # ассеты Vite — с хэшем в имени, можно кэшировать надолго
     location /assets/ {
         try_files $uri =404;
         expires 1y;
+        include /etc/nginx/snippets/security-headers.conf;
         add_header Cache-Control "public, immutable";
     }
 
     # SPA
     location / {
         try_files $uri $uri/ /index.html;
+        include /etc/nginx/snippets/security-headers.conf;
         add_header Cache-Control "no-cache";
     }
 }
@@ -82,7 +86,9 @@ server {
 #     ssl_session_cache shared:SSL:10m;
 #     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 #     root /usr/share/nginx/html;
-#     location /mock/ { return 404; }
-#     location /api/  { proxy_pass http://api_upstream; include /etc/nginx/snippets/proxy.conf; }
-#     location /      { try_files $uri $uri/ /index.html; }
+#     include /etc/nginx/snippets/security-headers.conf;
+#     location /mock/ { include /etc/nginx/snippets/security-headers.conf; return 404; }
+#     location /api/  { proxy_pass http://api_upstream; include /etc/nginx/snippets/proxy.conf;
+#                       include /etc/nginx/snippets/security-headers.conf; }
+#     location /      { try_files $uri $uri/ /index.html; include /etc/nginx/snippets/security-headers.conf; }
 # }

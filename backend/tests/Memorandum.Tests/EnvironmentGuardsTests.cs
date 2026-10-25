@@ -16,6 +16,7 @@ public sealed class EnvironmentGuardsTests
             ["ConnectionStrings:Postgres"] = "Host=localhost;Database=memorandum;Username=u;Password=p",
             ["AllowedHosts"] = "memorandum.example.ru",
             ["Mock:Enabled"] = "false",
+            ["Proxy:TrustedNetworks:0"] = "172.28.0.0/16",
         };
 
         foreach (var (key, value) in overrides ?? [])
@@ -49,6 +50,25 @@ public sealed class EnvironmentGuardsTests
 
         var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
         Assert.Contains("AllowedHosts", exception.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Production_without_trusted_proxy_networks_fails_fast()
+    {
+        using var factory = new MemorandumApiFactory
+        {
+            Environment = "Production",
+            Settings = new()
+            {
+                ["Database:Provider"] = "Postgres",
+                ["ConnectionStrings:Postgres"] = "Host=localhost;Database=memorandum;Username=u;Password=p",
+                ["AllowedHosts"] = "memorandum.example.ru",
+                ["Mock:Enabled"] = "false",
+                },
+        };
+
+        var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+        Assert.Contains("Proxy:TrustedNetworks", exception.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]

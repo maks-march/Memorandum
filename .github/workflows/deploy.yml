@@ -1,0 +1,175 @@
+name: Deploy
+
+# Деплой на VPS по кнопке. Dev не деплоится через CI: локально хватает
+# docker compose (infra/docker-compose.dev.yml) или ./infra/prod-up.sh.
+#
+# Workflow сам проверяет зависимости на сервере и доставляет недостающие
+# (git, curl, docker, compose v2) — prod-up.sh этого не делает и не должен.
+#
+# Требуется Environment `production` с обязательным подтверждением.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Короткий git sha для деплоя (по умолчанию — SHA запуска)
+        type: string
+        required: false
+      path:
+        description: Каталог с clone репозитория на сервере
+        type: string
+        default: /opt/memorandum
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: deploy-vps
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: production
+
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+      DEPLOY_PATH: ${{ inputs.path }}
+      EXPECT_SHA: ${{ inputs.sha }}
+
+    steps:
+      - name: Проверка доступности сервера
+        id: probe
+        run: |
+          set -euo pipefail
+
+          if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_USER" ] || [ -z "$SSH_KEY" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "**SKIPPED** — не заданы секреты DEPLOY_HOST / DEPLOY_USER / SSH_KEY" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          if ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o ConnectTimeout=5 \
+                 -o StrictHostKeyChecking=accept-new \
+                 "$DEPLOY_USER@$DEPLOY_HOST" 'true' >/dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "**SKIPPED (offline)** — $DEPLOY_USER@$DEPLOY_HOST не отвечает по SSH за 5 с" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Зависимости ставит CD, а не локальный скрипт: сервер — единственное место,
+      # где состав пакетов должен быть предсказуем.
+      - name: Зависимости на сервере
+        if: steps.probe.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o ConnectTimeout=10 \
+              -o StrictHostKeyChecking=accept-new \
+              "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' <<'REMOTE'
+          set -eu
+
+          SUDO=""
+          [ "$(id -u)" -eq 0 ] || SUDO="sudo -n"
+
+          if ! $SUDO true 2>/dev/null; then
+            echo "нет sudo без пароля — установить зависимости не смогу" >&2
+            exit 1
+          fi
+
+          missing=""
+          for c in git curl; do
+            command -v "$c" >/dev/null 2>&1 || missing="$missing $c"
+          done
+          command -v docker >/dev/null 2>&1 || missing="$missing docker"
+          docker compose version >/dev/null 2>&1 || missing="$missing compose"
+
+          if [ -n "$missing" ]; then
+            echo "не хватает:$missing — устанавливаю"
+            $SUDO apt-get update -qq
+            $SUDO apt-get install -y -qq ca-certificates curl git docker.io
+            # compose v2: имя пакета зависит от источника (Ubuntu — docker-compose-v2,
+            # официальный репозиторий Docker — docker-compose-plugin)
+            $SUDO apt-get install -y -qq docker-compose-v2 \
+              || $SUDO apt-get install -y -qq docker-compose-plugin \
+              || echo "compose не установился — проверьте вручную"
+          else
+            echo "зависимости на месте"
+          fi
+
+          $SUDO systemctl enable --now docker >/dev/null 2>&1 || true
+          $SUDO usermod -aG docker "$(id -un)" >/dev/null 2>&1 || true
+
+          echo "--- версии ---"
+          git --version
+          curl --version | head -1
+          docker --version
+          docker compose version
+          REMOTE
+
+      - name: Деплой
+        if: steps.probe.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+
+          sha="$(printf '%s' "${EXPECT_SHA:-$GITHUB_SHA}" | cut -c1-7)"
+
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o ConnectTimeout=10 \
+              -o StrictHostKeyChecking=accept-new \
+              "$DEPLOY_USER@$DEPLOY_HOST" \
+              'bash -s' -- "$DEPLOY_PATH" "$GITHUB_SHA" "sha-$sha" <<'REMOTE'
+          set -eu
+
+          DEPLOY_PATH="$1"
+          REVISION="$2"
+          TAG="$3"
+
+          # пользователь мог попасть в группу docker только что — в текущей сессии её ещё нет
+          if docker info >/dev/null 2>&1; then
+            COMPOSE="docker compose"
+          else
+            COMPOSE="sudo -n docker compose"
+          fi
+
+          cd "$DEPLOY_PATH"
+
+          if [ ! -f infra/.env ]; then
+            echo "нет infra/.env на сервере — создайте один раз: ./infra/prod-up.sh (или cp infra/.env.example infra/.env && chmod 600)" >&2
+            exit 1
+          fi
+
+          git fetch --quiet origin
+          git reset --hard --quiet "$REVISION"
+
+          export IMAGE_TAG="$TAG"
+          $COMPOSE -f infra/docker-compose.prod.yml --env-file infra/.env pull api web
+          $COMPOSE -f infra/docker-compose.prod.yml --env-file infra/.env \
+            up -d --remove-orphans --wait --wait-timeout 120
+
+          # smoke: статика, health, окружение, версия сборки, mock
+          base="http://localhost"
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/")" = "200"
+          health="$(curl -fsS "$base/api/health")"
+          echo "$health"
+          printf '%s' "$health" | grep -q '"environment":"Production"'
+          printf '%s' "$health" | grep -q "${TAG#sha-}"
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/mock/api/health")" = "404"
+          echo "smoke ok"
+          REMOTE
+
+      - name: Итог
+        if: always()
+        run: |
+          if [ -s "${GITHUB_STEP_SUMMARY:-/dev/null}" ]; then
+            exit 0
+          fi
+          echo "**DEPLOY FAILED** — смотрите лог шага «Деплой»" >> "$GITHUB_STEP_SUMMARY"

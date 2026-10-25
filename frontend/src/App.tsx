@@ -4,6 +4,9 @@ import { fetchHealth, type HealthResult } from './api';
 const isDev = import.meta.env.DEV;
 const proxyTarget = import.meta.env.VITE_API_TARGET ?? 'http://localhost:5000';
 
+/** Версия статики: в CI подставляется короткий git sha, локально — "local". */
+const appVersion = import.meta.env.VITE_APP_VERSION ?? 'local';
+
 export default function App() {
   const [health, setHealth] = useState<HealthResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,6 +47,9 @@ export default function App() {
           <span className={`badge ${isDev ? 'badge-dev' : 'badge-prod'}`}>
             {isDev ? 'DEV (vite)' : 'PROD (static build)'}
           </span>
+          <span className="badge" title="версия сборки статики (git sha)">
+            сборка: {appVersion}
+          </span>
           {health?.ok && (
             <span className={`badge ${isMock ? 'badge-mock' : 'badge-api'}`}>
               ответ от: {isMock ? 'MOCK' : 'API'}
@@ -55,7 +61,9 @@ export default function App() {
 
       <section className="card">
         <p className="hint">
-          Запросы идут по относительным путям: <code>/api/health</code> и <code>/mock/api/health</code>.
+          Запросы идут по относительным путям. Версия API — сегмент URL:{' '}
+          <code>/api/v1/system/info</code>; health и mock от версии не зависят
+          (<code>/api/health</code>, <code>/mock/api/health</code>).
           {isDev ? (
             <>
               {' '}В dev их проксирует Vite на <code>{proxyTarget}</code>.
@@ -74,6 +82,9 @@ export default function App() {
           </button>
           <button onClick={() => void call('/mock/api/health?status=500')} disabled={loading} className="secondary">
             mock → 500
+          </button>
+          <button onClick={() => void call('/api/v1/system/info')} disabled={loading} className="secondary">
+            GET /api/v1/system/info
           </button>
         </div>
       </section>
