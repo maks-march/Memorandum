@@ -20,7 +20,7 @@ env:
 
 jobs:
   backend:
-    name: backend — build + tests
+    name: backend
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -63,7 +63,7 @@ jobs:
           retention-days: 7
 
   frontend:
-    name: frontend — typecheck + build
+    name: frontend
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -102,7 +102,7 @@ jobs:
           args: -color
 
   compose:
-    name: compose + dockerfile
+    name: infra
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
