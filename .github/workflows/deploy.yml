@@ -147,19 +147,35 @@ jobs:
           git reset --hard --quiet "$REV"
           echo "код на $(git rev-parse --short HEAD)"
 
-          web_port="$(grep -E '^WEB_PORT=' infra/.env | tail -1 | cut -d= -f2 || true)"
-          BASE="http://localhost:${web_port:-80}"
+          # ── режим web: HTTP или HTTPS ─────────────────────────────────────
+          # флаг ставит ./infra/prod-up.sh --tls; без него деплой пересоздал бы
+          # web без TLS-оверрайда — 443 исчез бы, а сайт молча ушёл на HTTP
+          env_get() { grep -E "^$1=" infra/.env | tail -1 | cut -d= -f2- || true; }
+          web_port="$(env_get WEB_PORT)"
+          app_host="$(env_get APP_HOST)"
+          app_host="${app_host:-localhost}"
+          tls_enabled="$(env_get TLS_ENABLED)"
+          COMPOSE_FILES="-f infra/docker-compose.prod.yml"
+          if [ "$tls_enabled" = "1" ]; then
+            COMPOSE_FILES="$COMPOSE_FILES -f infra/docker-compose.tls.yml"
+            BASE="https://${app_host}"
+            CURL="curl -fsS -k --resolve ${app_host}:443:127.0.0.1"
+          else
+            BASE="http://127.0.0.1:${web_port:-80}"
+            CURL="curl -fsS"
+          fi
+          echo "режим: $( [ "$tls_enabled" = "1" ] && echo 'HTTPS (TLS_ENABLED=1)' || echo 'HTTP' )"
 
           PREVIOUS=""
           [ -f infra/.deployed_tag ] && PREVIOUS="$(cat infra/.deployed_tag)"
 
           smoke() {
             expected="${1:-}"
-            test "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/")" = "200" || return 1
-            health="$(curl -fsS "$BASE/api/health")" || return 1
+            test "$($CURL -o /dev/null -w '%{http_code}' "$BASE/")" = "200" || return 1
+            health="$($CURL "$BASE/api/health")" || return 1
             echo "$health"
             printf '%s' "$health" | grep -q '"environment":"Production"' || return 1
-            test "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/mock/api/health")" = "404" || return 1
+            test "$($CURL -o /dev/null -w '%{http_code}' "$BASE/mock/api/health")" = "404" || return 1
             if [ -n "$expected" ]; then
               printf '%s' "$health" | grep -q "$expected" || return 1
             fi
@@ -168,8 +184,10 @@ jobs:
 
           deploy_tag() {
             export IMAGE_TAG="$1"
-            $COMPOSE -f infra/docker-compose.prod.yml --env-file infra/.env pull api web
-            $COMPOSE -f infra/docker-compose.prod.yml --env-file infra/.env \
+            $COMPOSE $COMPOSE_FILES --env-file infra/.env pull api web
+            # в TLS-режиме COMPOSE_FILES тянет tls.yml: certbot остаётся в стеке
+            # и продолжает продление, 443 не пропадает
+            $COMPOSE $COMPOSE_FILES --env-file infra/.env \
               up -d --remove-orphans --wait --wait-timeout 120
           }
 

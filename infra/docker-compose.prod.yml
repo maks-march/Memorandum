@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 #  PROD: nginx (статика SPA + прокси) + api + postgres.
 #  Запуск:  ./infra/prod-up.sh          (или docker compose -f infra/docker-compose.prod.yml up -d --build)
-#  Наружу:  80. HTTPS включается вручную — см. комментарий в infra/nginx/default.conf.template.
+#  Наружу:  80. HTTPS — вместе с -f infra/docker-compose.tls.yml (TLS_ENABLED=1 в infra/.env).
 #  API и БД — только внутренняя сеть.
 # ─────────────────────────────────────────────────────────────────────────────
 name: memorandum
@@ -79,10 +79,7 @@ services:
         condition: service_healthy
     ports:
       - "${WEB_PORT:-80}:80"
-    volumes:
-      # сертификаты нужны, только если включён TLS (infra/docker-compose.tls.yml)
-      - certs:/etc/letsencrypt:ro
-      - certbot_www:/var/www/certbot:ro
+    # сертификаты и ACME-каталог монтирует infra/docker-compose.tls.yml
     environment:
       APP_HOST: ${APP_HOST:-localhost}
     healthcheck:
@@ -95,21 +92,6 @@ services:
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
-
-  # TLS: APP_HOST=<домен> docker compose -f infra/docker-compose.prod.yml --profile tls up -d
-  # Выпускает и продлевает сертификат. HTTPS заработает после включения server-блока 443 + порта 443.
-  certbot:
-    image: certbot/certbot:latest
-    profiles: ["tls"]
-    restart: unless-stopped
-    volumes:
-      - certs:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
-    logging: *default-logging
-    entrypoint: >
-      /bin/sh -c "trap exit TERM;
-      certbot certonly --webroot -w /var/www/certbot -d ${APP_HOST} --email ${CERTBOT_EMAIL} --agree-tos --no-eff-email -n || true;
-      while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
 
   # Бэкап БД: docker compose -f infra/docker-compose.prod.yml --profile tools run --rm backup
   # Поставить в cron хоста: 0 3 * * * cd /opt/memorandum && docker compose -f infra/docker-compose.prod.yml --profile tools run --rm backup

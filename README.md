@@ -19,8 +19,9 @@ docker compose -f infra/docker-compose.prod.yml up -d --build
 ```
 
 Инфраструктура, dev/prod-стек, TLS и разбор типовых проблем — [`infra/README.md`](infra/README.md).
-HTTPS — отдельный `infra/docker-compose.tls.yml`: `./infra/prod-up.sh --tls` выпускает
-сертификат и переключает web на 443. Без него стек работает по HTTP.
+TLS: `./infra/prod-up.sh --tls` выпускает сертификат и переключает web на 443,
+состояние хранится в `TLS_ENABLED` (`infra/.env`) — его читают и скрипт, и CD,
+поэтому деплой по кнопке не снимает HTTPS. Без флага стек работает по HTTP.
 
 ### CI
 
@@ -76,10 +77,16 @@ ruleset — иначе required-чеки ещё не известны GitHub и 
 
 ### CD — только прод
 
-Разработка деплоя не требует: `docker compose -f infra/docker-compose.dev.yml up` или
-`./infra/prod-up.sh` для локальной репетиции прода. `prod-up.sh` — вспомогательный: он проверяет,
-что Docker на месте, и падает с подсказкой, но **ничего не устанавливает**. Установка зависимостей
-на сервере — задача CD.
+Разработка деплоя не требует: `docker compose -f infra/docker-compose.dev.yml up`.
+
+Первый запуск на сервере — один раз:
+
+```bash
+sudo ./infra/prod-up.sh --app-host <IP или домен> --ssh-key ~/.ssh/memorandum_deploy.pub --ufw --cron
+```
+
+Скрипт ставит пакеты и docker, клонирует репозиторий в `/opt/memorandum`, создаёт `infra/.env`,
+поднимает стек и прогоняет smoke. Дальше обновления идут через CD.
 
 Для VPS два workflow:
 

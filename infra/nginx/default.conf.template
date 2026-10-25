@@ -73,6 +73,7 @@ server {
 }
 
 # ── HTTPS ────────────────────────────────────────────────────────────────────
-# Здесь только HTTP. Server-блок 443 лежит в infra/nginx/tls/tls.conf.template и
-# монтируется вместе с infra/docker-compose.tls.yml — то есть только когда TLS включён.
-# Без этого файла nginx не требует сертификат и спокойно стартует.
+# Здесь только HTTP — сертификат этому конфигу не нужен, nginx стартует всегда.
+# В режиме TLS (TLS_ENABLED=1 в infra/.env) этот файл целиком заменяется на
+# infra/nginx/tls/default.conf.template: там редирект 80 → 443, /healthz для
+# healthcheck и полный HTTPS-блок. Переключение — через infra/docker-compose.tls.yml.

@@ -44,25 +44,37 @@ docker compose -f infra/docker-compose.prod.yml up -d --build
 curl -fsS http://localhost/api/health
 ```
 
-TLS — отдельный файл `infra/docker-compose.tls.yml`, подключается поверх прод-стека.
-Нужен домен в `APP_HOST` и A-запись на сервер.
+TLS — `infra/docker-compose.tls.yml` поверх прод-стека. Нужен домен в `APP_HOST`
+(или публичный IP) и A-запись на сервер.
 
 ```bash
-# одной командой: certbot выпустит сертификат, затем web перезапустится на 443
-APP_HOST=example.ru ./infra/prod-up.sh --tls
+# одной командой: приложение → certbot → ожидание сертификата → web на 443 → smoke по https
+./infra/prod-up.sh --app-host example.ru --tls
 
 # вручную
 docker compose -f infra/docker-compose.prod.yml -f infra/docker-compose.tls.yml \
-  --env-file infra/.env --profile tls up -d
-docker compose -f infra/docker-compose.prod.yml logs certbot    # проверить выпуск
-docker compose -f infra/docker-compose.prod.yml \
-  -f infra/docker-compose.tls.yml --env-file infra/.env restart web
+  --env-file infra/.env up -d db api web
+docker compose -f infra/docker-compose.prod.yml -f infra/docker-compose.tls.yml \
+  --env-file infra/.env up -d certbot
+docker compose -f infra/docker-compose.prod.yml -f infra/docker-compose.tls.yml \
+  --env-file infra/.env logs certbot
 ```
 
-Override добавляет порт 443 и монтирует `infra/nginx/tls/tls.conf.template` в
-`/etc/nginx/templates` — server-блок 443 появляется в конфиге только вместе с ним.
-Без override стек работает по HTTP и сертификат ему не нужен, поэтому деплой из CI
-(без TLS) ничего не ломает. HSTS есть только в HTTPS-блоке.
+Состояние режима — `TLS_ENABLED` в `infra/.env`: его ставит скрипт после успешного
+smoke по https, читают и скрипт, и `deploy.yml` (иначе деплой по кнопке пересоздал бы
+web без оверрайда и 443 бы пропал). Откат на HTTP — `TLS_ENABLED=0` и
+`./infra/prod-up.sh` без `--tls`.
+
+Override добавляет 443, тома `certs`/`certbot_www`, сервис `certbot` и подменяет
+шаблон nginx на `infra/nginx/tls/default.conf.template` — в нём сразу и ACME на 80,
+и `301` на 443, и HTTPS-блок с HSTS (`snippets/hsts.conf` в каждом location).
+`/healthz` — техническая ручка для healthcheck контейнера, не публичный монитор.
+
+Certbot: домен — `-d $APP_HOST`, renew раз в 12 ч; IP — `--ip-address $APP_HOST
+--preferred-profile shortlived` (сертификаты на IP живут ~6 дней), renew раз в сутки.
+Обновление само nginx не перезагружает: `--deploy-hook` трогает
+`/var/www/certbot/.reload`, а хост-cron с `infra/reload-certs.sh` делает
+`nginx -s reload` только при наличии флага (`--cron` прописывает его на 04:00).
 
 Отличия прода (проверяется автоматически при старте API):
 - `Database:Provider` обязан быть `Postgres`, иначе приложение не стартует;
@@ -77,8 +89,20 @@ docker compose -f infra/docker-compose.prod.yml exec api printenv OpenApi__Enabl
 
 ## CD (только VPS)
 
-Локально ничего не нужно: dev — `docker compose -f infra/docker-compose.dev.yml up`,
-репетиция прода — `./infra/prod-up.sh` (собирает образы на месте).
+Dev деплоя не требует: `docker compose -f infra/docker-compose.dev.yml up`.
+
+Первый запуск на сервере — `prod-up.sh` (он же готовит машину):
+
+```bash
+sudo ./infra/prod-up.sh --app-host 203.0.113.10
+sudo ./infra/prod-up.sh --app-host example.ru --ssh-key ~/.ssh/deploy.pub --ufw --cron
+sudo ./infra/prod-up.sh --app-host 203.0.113.10 --dry-run     # только показать команды
+```
+
+Флаги: `--app-host` (обязателен), `--web-port`, `--path` (по умолчанию `/opt/memorandum`),
+`--branch`, `--user`, `--ssh-key`, `--ufw`, `--cron`, `--skip-up`, `--force`, `--dry-run`.
+Скрипт не пушит в git и не меняет отслеживаемые файлы (кроме `infra/.env`), поэтому
+последующий CD с `git reset --hard` ничего не ломает.
 
 На VPS деплой запускается кнопкой **Actions → Deploy** (`workflow_dispatch` в Environment
 `production`, требует подтверждения). Workflow делает на сервере:
@@ -91,16 +115,10 @@ docker compose -f infra/docker-compose.prod.yml exec api printenv OpenApi__Enabl
 5. успех — `infra/.deployed_tag` и `infra/.previous_tag`; провал smoke — откат на предыдущий тег
    и повторный smoke.
 
-Порт для smoke берётся из `WEB_PORT` в `infra/.env`. `prod-up.sh` — вспомогательный:
-зависимостей не ставит, только проверяет и подсказывает.
+Порт для smoke берётся из `WEB_PORT` в `infra/.env`.
 
-Что должно быть на сервере один раз:
-
-```bash
-git clone https://github.com/maks-march/Memorandum /opt/memorandum
-cd /opt/memorandum && cp infra/.env.example infra/.env && chmod 600 infra/.env
-docker login ghcr.io                           # PAT classic, read:packages
-```
+Порядок первого запуска: `prod-up.sh` (готовит сервер, клон, `infra/.env`, стек) →
+`docker login ghcr.io`, если пакеты приватные → Actions → Deploy.
 
 Секреты workflow: `DEPLOY_HOST`, `DEPLOY_USER`, `SSH_KEY` (ed25519), `GHCR_USER`, `GHCR_TOKEN`.
 
@@ -109,13 +127,15 @@ docker login ghcr.io                           # PAT classic, read:packages
 ```
 infra/
 ├─ docker-compose.dev.yml     dev: api + vite
-├─ docker-compose.prod.yml    prod: web + api + db (+ certbot, профиль tls)
+├─ docker-compose.prod.yml    prod: web + api + db + backup (профиль tools)
 ├─ api.Dockerfile             publish API, non-root
 ├─ web.Dockerfile             build Vite → nginx + статика
 ├─ nginx/default.conf.template  SPA, /api → api:8080, /mock → 404, ACME
-├─ docker-compose.tls.yml     TLS поверх прода: порт 443 + server-блок 443
-├─ nginx/tls/tls.conf.template  server-блок 443 (монтируется только с tls.yml)
+├─ docker-compose.tls.yml     TLS поверх прода: 443, сертификаты, certbot
+├─ nginx/tls/default.conf.template  подменяет HTTP-шаблон в TLS-режиме (80 → 443, HSTS, /healthz)
+├─ reload-certs.sh            nginx -s reload после продления сертификата (по флагу)
 ├─ nginx/snippets/proxy.conf  заголовки прокси
-├─ prod-up.sh                 вспомогательный: локальный запуск прода (проверка зависимостей, .env, сборка)
+├─ nginx/snippets/hsts.conf   HSTS для HTTPS-блоков
+├─ prod-up.sh                 подготовка сервера и первый запуск прода (пакеты, клон, .env, smoke)
 └─ .env.example               переменные для prod (в т.ч. образы GHCR)
 ```

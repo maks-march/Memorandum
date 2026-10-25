@@ -1,12 +1,13 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  TLS поверх прод-стека. Подключается только когда домен уже указывает на сервер:
+#  TLS поверх прод-стека. Подключается и скриптом, и CD по флагу TLS_ENABLED=1
+#  в infra/.env — это единственный источник истины, иначе деплой по кнопке
+#  молча пересоздаст web без TLS и сайт уйдёт на HTTP.
 #
 #    docker compose -f infra/docker-compose.prod.yml \
-#                   -f infra/docker-compose.tls.yml --profile tls up -d
+#                   -f infra/docker-compose.tls.yml --env-file infra/.env up -d
 #
-#  Без этого файла стек работает по HTTP и сертификат ему не нужен.
-#  Включает: порт 443 и server-блок 443 в nginx (шаблон монтируется в
-#  /etc/nginx/templates, envsubst подставит ${APP_HOST} при старте).
+#  Что добавляет: порт 443, сертификаты, конфиг nginx с редиректом 80 → 443
+#  и /healthz, а также сервис certbot.
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
@@ -14,4 +15,46 @@ services:
     ports:
       - "${HTTPS_PORT:-443}:443"
     volumes:
-      - ./nginx/tls/tls.conf.template:/etc/nginx/templates/tls.conf.template:ro
+      # сертификаты и ACME-каталог нужны только в TLS-режиме
+      - certs:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+      # заменяем HTTP-конфиг на вариант с редиректом и HTTPS-блоком
+      - ./nginx/tls/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    healthcheck:
+      # после редиректа GET / отдаёт 301 — проверяем техническую ручку
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  certbot:
+    # пин по тегу: latest меняется молча и ломает выпуск
+    image: certbot/certbot:v5.8.0
+    restart: unless-stopped
+    volumes:
+      - certs:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    environment:
+      APP_HOST: ${APP_HOST:-localhost}
+      CERTBOT_EMAIL: ${CERTBOT_EMAIL:-admin@example.ru}
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    # --deploy-hook трогает флаг: хост-cron (infra/reload-certs.sh) перезагрузит
+    # nginx только когда сертификат действительно обновился.
+    entrypoint: >
+      /bin/sh -c "trap exit TERM;
+      case \"$$APP_HOST\" in
+        *[0-9].[0-9]*) ARGS=\"--ip-address $$APP_HOST --preferred-profile shortlived\"; SLEEP=24h ;;
+        *)             ARGS=\"-d $$APP_HOST\"; SLEEP=12h ;;
+      esac;
+      certbot certonly --webroot -w /var/www/certbot $$ARGS
+        --email $$CERTBOT_EMAIL --agree-tos --no-eff-email -n || true;
+      while :; do
+        certbot renew --webroot -w /var/www/certbot --quiet
+          --deploy-hook 'touch /var/www/certbot/.reload';
+        sleep $$SLEEP & wait $$!;
+      done"

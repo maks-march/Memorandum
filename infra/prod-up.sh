@@ -8,9 +8,9 @@
 #  с git reset --hard ничего не сломает.
 #
 #  Использование:
-#    sudo ./server-prepare.sh --app-host 203.0.113.10
-#    sudo ./server-prepare.sh --app-host pp7.example.ru --web-port 80 --ufw --cron
-#    sudo ./server-prepare.sh --app-host 203.0.113.10 --dry-run    # только показать
+#    sudo ./infra/prod-up.sh --app-host 203.0.113.10
+#    sudo ./infra/prod-up.sh --app-host memorandum.example.ru --web-port 80 --ufw --cron
+#    sudo ./infra/prod-up.sh --app-host 203.0.113.10 --dry-run    # только показать
 #
 #  Флаги:
 #    --app-host HOST     домен или IP сервера (обязательно; попадает в AllowedHosts)
@@ -19,6 +19,7 @@
 #    --branch BR         ветка, по умолчанию main
 #    --user USER         владелец клона и деплой-пользователь (по умолчанию — текущий)
 #    --ssh-key FILE      добавить публичный ключ в authorized_keys этого пользователя
+#    --tls               включить HTTPS: certbot + редирект 80 → 443, состояние в TLS_ENABLED
 #    --ufw               настроить ufw: 22, WEB_PORT и 443
 #    --cron              поставить бэкап БД в cron (03:00)
 #    --skip-up           только подготовка, без pull/up/smoke
@@ -37,6 +38,7 @@ DEPLOY_USER=""
 SSH_KEY_FILE=""
 SETUP_UFW=0
 SETUP_CRON=0
+TLS=0
 DO_UP=1
 FORCE=0
 DRY=0
@@ -59,6 +61,7 @@ while [ $# -gt 0 ]; do
     --branch)   BRANCH="${2:-}";   shift 2 ;;
     --user)     DEPLOY_USER="${2:-}"; shift 2 ;;
     --ssh-key)  SSH_KEY_FILE="${2:-}"; shift 2 ;;
+    --tls)      TLS=1; shift ;;
     --ufw)      SETUP_UFW=1; shift ;;
     --cron)     SETUP_CRON=1; shift ;;
     --skip-up)  DO_UP=0; shift ;;
@@ -273,39 +276,39 @@ else
   c_warn "СОХРАНИТЕ пароль БД: $DB_PASS"
 fi
 
-# ── 5. известная ловушка healthcheck ─────────────────────────────────────────
-step "5/9 Проверка healthcheck web"
+# ── 5. режим TLS ─────────────────────────────────────────────────────────────
+step "5/9 Режим TLS"
 
-COMPOSE="$TARGET/infra/docker-compose.prod.yml"
-LOCAL_OVERRIDE="$TARGET/infra/docker-compose.local.yml"
-compose_args="-f infra/docker-compose.prod.yml"
-[ -f "$LOCAL_OVERRIDE" ] && compose_args="$compose_args -f infra/docker-compose.local.yml"
+COMPOSE_FILES=(-f "$TARGET/infra/docker-compose.prod.yml")
 
-if [ "$DRY" -eq 0 ] && grep -q 'wget", "-qO-", "http://localhost/"' "$COMPOSE"; then
-  c_warn "в compose healthcheck web использует http://localhost/ — в Alpine это часто IPv6 (::1),"
-  c_warn "а nginx слушает только IPv4 → контейнер становится unhealthy и 'up --wait' падает."
-  if [ ! -f "$LOCAL_OVERRIDE" ]; then
-    c_info "создаю untracked override infra/docker-compose.local.yml (git reset его не тронет)"
-    cat > "$LOCAL_OVERRIDE" <<'YAML'
-# Локальный override: чинит healthcheck web (localhost → 127.0.0.1, + start_period).
-# Файл не отслеживается git, поэтому CD-деплой с git reset --hard его не удалит.
-services:
-  web:
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
-      interval: 20s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-YAML
-    [ "$(id -u)" -eq 0 ] && [ "$DEPLOY_USER" != "root" ] && chown "$DEPLOY_USER":"$DEPLOY_USER" "$LOCAL_OVERRIDE"
-  fi
-  c_warn "ПРАВИЛЬНОЕ решение — поправить healthcheck в репозитории (PR), иначе CD-деплой будет падать на 'up --wait'"
-elif [ "$DRY" -eq 1 ]; then
-  c_info "dry-run: проверка healthcheck пропущена (compose появится после клонирования)"
-else
-  c_ok "healthcheck не вызывает известной проблемы"
+# состояние читаем из infra/.env: тот же флаг использует CD, иначе деплой
+# по кнопке пересоздаст web без TLS-оверрайда и сайт молча уйдёт на HTTP
+current_tls="$(grep -E '^TLS_ENABLED=' "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
+if [ -z "$current_tls" ]; then
+  current_tls=0
+  run_sh "printf 'TLS_ENABLED=0\\n' >> '$ENV_FILE'"
 fi
+
+if [ "$TLS" -eq 1 ]; then
+  case "$APP_HOST" in
+    localhost|127.0.0.1|*[!a-zA-Z0-9.-]*)
+      c_err "--tls: APP_HOST='$APP_HOST' не годится — нужен домен или публичный IP"; exit 2 ;;
+  esac
+  # 443 должен быть свободен: его займёт web после выпуска сертификата
+  if [ "$DRY" -eq 0 ] && [ "$current_tls" != "1" ] \
+     && { ss -ltn 2>/dev/null || netstat -ltn 2>/dev/null || true; } | grep -qE '[:.]443[[:space:]]'; then
+    c_err "порт 443 уже занят — освободите его и повторите"; exit 2
+  fi
+  if [ "$current_tls" = "1" ]; then c_ok "TLS уже включён"; else c_info "включаю TLS (TLS_ENABLED=1)"; fi
+  COMPOSE_FILES+=(-f "$TARGET/infra/docker-compose.tls.yml")
+elif [ "$current_tls" = "1" ]; then
+  c_ok "TLS включён ранее (TLS_ENABLED=1) — оставляю"
+  COMPOSE_FILES+=(-f "$TARGET/infra/docker-compose.tls.yml")
+else
+  c_ok "HTTP-режим (TLS_ENABLED=0)"
+fi
+
+compose_args="${COMPOSE_FILES[*]}"
 
 # ── 6. образы ────────────────────────────────────────────────────────────────
 step "6/9 Образы из GHCR"
@@ -349,7 +352,13 @@ if [ "$SETUP_CRON" -eq 1 ]; then
   c_info "ставлю бэкап БД в cron (03:00)"
   CRON_LINE="0 3 * * * cd $TARGET && docker compose -f infra/docker-compose.prod.yml --env-file infra/.env --profile tools run --rm backup >/dev/null 2>&1"
   run_sh "( crontab -l 2>/dev/null | grep -vF 'profile tools run --rm backup' ; echo '$CRON_LINE' ) | crontab -"
-  c_ok "cron настроен"
+  c_ok "бэкап БД в cron (03:00)"
+
+  if [ "$TLS" -eq 1 ] || [ "$current_tls" = "1" ]; then
+    CRON_TLS="0 4 * * * cd $TARGET && ./infra/reload-certs.sh >> /var/log/memorandum-certs.log 2>&1"
+    run_sh "( crontab -l 2>/dev/null | grep -vF 'infra/reload-certs.sh' ; echo '$CRON_TLS' ) | crontab -"
+    c_ok "перезагрузка nginx после продления сертификата (04:00)"
+  fi
 fi
 
 # ── 8. запуск ────────────────────────────────────────────────────────────────
@@ -360,18 +369,64 @@ else
 
   if [ "$DRY" -eq 1 ]; then
     printf '   \033[90m$ cd %s && %s compose %s --env-file infra/.env pull\033[0m\n' "$TARGET" "$DOCKER" "$compose_args"
-    printf '   \033[90m$ %s compose %s --env-file infra/.env up -d --remove-orphans\033[0m\n' "$DOCKER" "$compose_args"
+    printf '   \033[90m$ %s compose %s --env-file infra/.env up -d --remove-orphans db api web\033[0m\n' "$DOCKER" "$compose_args"
+    [ "$TLS" -eq 1 ] && printf '   \033[90m$ %s compose %s --env-file infra/.env up -d certbot\033[0m\n' "$DOCKER" "$compose_args"
   else
     cd "$TARGET"
     run_sh "$DOCKER compose $compose_args --env-file infra/.env pull"
-    # без --wait: сначала поднимаем, потом ждём health сами (--wait падает на unhealthy web)
-    run_sh "$DOCKER compose $compose_args --env-file infra/.env up -d --remove-orphans"
 
-    BASE="http://127.0.0.1:${WEB_PORT}"
+    # сначала приложение, certbot — отдельно: конфиг nginx в TLS-режиме требует
+    # сертификат, а его на первом запуске ещё нет
+    run_sh "$DOCKER compose $compose_args --env-file infra/.env up -d --remove-orphans db api web"
+
+    if [ "$TLS" -eq 1 ] || [ "$current_tls" = "1" ]; then
+      run_sh "$DOCKER compose $compose_args --env-file infra/.env up -d certbot"
+
+      if [ "$DRY" -eq 0 ]; then
+        step "Ожидание сертификата"
+        cert_ready=0
+        for _ in $(seq 1 30); do
+          if $DOCKER run --rm -v memorandum_certs:/c alpine:3.21 \
+               test -f "/c/live/$APP_HOST/fullchain.pem" >/dev/null 2>&1; then
+            cert_ready=1; break
+          fi
+          printf '.'; sleep 5
+        done
+        printf '\n'
+
+        if [ "$cert_ready" -eq 1 ]; then
+          c_ok "сертификат для $APP_HOST получен"
+          # web поднимаем заново: без сертификата его конфиг не стартовал
+          run_sh "$DOCKER compose $compose_args --env-file infra/.env up -d --force-recreate web"
+        else
+          c_err "сертификат не получен за 150 с — TLS НЕ включён"
+          # shellcheck disable=SC2086  # compose_args — список -f, нужен сплит
+          $DOCKER compose $compose_args --env-file infra/.env logs --tail 40 certbot || true
+          if [ "$current_tls" != "1" ]; then
+            c_info "оставляю HTTP-режим (TLS_ENABLED=0)"
+            COMPOSE_FILES=(-f "$TARGET/infra/docker-compose.prod.yml")
+            compose_args="${COMPOSE_FILES[*]}"
+            TLS=0
+            run_sh "$DOCKER compose $compose_args --env-file infra/.env up -d --force-recreate web"
+          fi
+        fi
+      fi
+    fi
+
+    if [ "$TLS" -eq 1 ]; then
+      # ходим на localhost, но с настоящими Host/SNI: иначе nginx отдаст
+      # default-сервер, и ни редирект, ни HSTS толком не проверить
+      BASE="https://$APP_HOST"
+      CURL=(curl -fsSk --resolve "$APP_HOST:443:127.0.0.1")
+    else
+      BASE="http://127.0.0.1:${WEB_PORT}"
+      CURL=(curl -fsS)
+    fi
+
     printf '   ждём /api/health'
     up=0
     for _ in $(seq 1 60); do
-      if curl -fsS -m 3 -o /dev/null "$BASE/api/health" 2>/dev/null; then up=1; break; fi
+      if "${CURL[@]}" -m 3 -o /dev/null "$BASE/api/health" 2>/dev/null; then up=1; break; fi
       printf '.'; sleep 2
     done
     printf '\n'
@@ -382,21 +437,41 @@ else
 
     fails=0
     check() { # url, ожидание, описание
-      code="$(curl -s -o /dev/null -w '%{http_code}' -m 5 "$1" 2>/dev/null || echo 000)"
+      code="$("${CURL[@]}" -o /dev/null -w '%{http_code}' -m 5 "$1" 2>/dev/null || echo 000)"
       if [ "$code" = "$2" ]; then c_ok "$3 ($code)"; else c_err "$3: ожидали $2, получили $code"; fails=$((fails+1)); fi
     }
     check "$BASE/" 200 "статика /"
     check "$BASE/mock/api/health" 404 "mock закрыт"
     check "$BASE/api/health" 200 "health"
 
-    health="$(curl -fsS -m 5 "$BASE/api/health" 2>/dev/null || true)"
-    printf '%s\n' "$health" | grep -q '"environment":"Production"' && c_ok "окружение Production" || { c_err "в health не Production"; fails=$((fails+1)); }
-    printf '%s\n' "$health" | grep -q '"version":"[0-9][^"]*+' && c_ok "версия сборки есть (sha)" || c_warn "версия без sha — образ собран локально?"
+    health="$("${CURL[@]}" -m 5 "$BASE/api/health" 2>/dev/null || true)"
+    if printf '%s\n' "$health" | grep -q '"environment":"Production"'; then
+      c_ok "окружение Production"
+    else
+      c_err "в health не Production"; fails=$((fails+1))
+    fi
 
-    if curl -sI -m 5 "$BASE/" 2>/dev/null | grep -qi 'content-security-policy'; then
+    if printf '%s\n' "$health" | grep -q '"version":"[0-9][^"]*+'; then
+      c_ok "версия сборки есть (sha)"
+    else
+      c_warn "версия без sha — образ собран локально?"
+    fi
+
+    if curl -sIk -m 5 "$BASE/" 2>/dev/null | grep -qi 'content-security-policy'; then
       c_ok "security-заголовки на /"
     else
       c_warn "нет CSP на / — проверьте nginx-сниппет"
+    fi
+
+    if [ "$TLS" -eq 1 ]; then
+      if curl -sIk -m 5 "$BASE/" 2>/dev/null | grep -qi 'strict-transport-security'; then
+        c_ok "HSTS отдаётся"
+      else
+        c_err "нет HSTS — подключите snippets/hsts.conf в HTTPS-блок"; fails=$((fails+1))
+      fi
+      # редирект 80 → 443
+      code="$(curl -s -o /dev/null -w '%{http_code}' -m 5 -H "Host: $APP_HOST" "http://127.0.0.1:${WEB_PORT}/" 2>/dev/null || echo 000)"
+      if [ "$code" = "301" ]; then c_ok "HTTP → HTTPS редирект (301)"; else c_err "нет редиректа на HTTPS: получили $code"; fails=$((fails+1)); fi
     fi
 
     if [ "$fails" -eq 0 ]; then
@@ -407,13 +482,29 @@ else
   fi
 fi
 
+# ── фиксация TLS ─────────────────────────────────────────────────────────────
+if [ "$TLS" -eq 1 ] && [ "${fails:-0}" -eq 0 ]; then
+  if [ "$current_tls" != "1" ]; then
+    run_sh "sed -i 's|^TLS_ENABLED=.*|TLS_ENABLED=1|' '$ENV_FILE'"
+    if [ "$DRY" -eq 0 ]; then c_ok "TLS_ENABLED=1 записан в infra/.env"; fi
+  fi
+elif [ "$TLS" -eq 1 ]; then
+  c_warn "smoke в TLS-режиме не прошёл — TLS_ENABLED не включён"
+fi
+
 # ── итог ─────────────────────────────────────────────────────────────────────
 step "Готово"
 
+SCHEME="http"
+[ "$TLS" -eq 1 ] && SCHEME="https"
+PORT_SUFFIX=""
+[ "$SCHEME" = "http" ] && [ "$WEB_PORT" != "80" ] && PORT_SUFFIX=":$WEB_PORT"
+
 cat <<EOF
 
-  Приложение:   http://${APP_HOST}$( [ "$WEB_PORT" != "80" ] && printf ':%s' "$WEB_PORT" )
-  Health:       http://${APP_HOST}$( [ "$WEB_PORT" != "80" ] && printf ':%s' "$WEB_PORT" )/api/health
+  Приложение:   ${SCHEME}://${APP_HOST}${PORT_SUFFIX}
+  Health:       ${SCHEME}://${APP_HOST}${PORT_SUFFIX}/api/health
+  TLS:          $( [ "$TLS" -eq 1 ] && echo "включён (TLS_ENABLED=1)" || echo "выключен (TLS_ENABLED=0)" )
   Каталог:      ${TARGET}
   Ветка:        ${BRANCH}
 
