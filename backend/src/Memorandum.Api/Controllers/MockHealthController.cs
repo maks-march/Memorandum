@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Memorandum.Api.Controllers;
@@ -7,6 +8,7 @@ namespace Memorandum.Api.Controllers;
 /// задержкой и кодом ответа. Включается флагом Mock:Enabled (по умолчанию только в Development).
 /// </summary>
 [ApiController]
+[ApiVersionNeutral]
 [Route("mock/api/health")]
 [Tags("Health (mock)")]
 public sealed class MockHealthController(IConfiguration config, IHostEnvironment env) : ControllerBase

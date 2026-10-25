@@ -1,11 +1,13 @@
 using System.Diagnostics;
 using System.Reflection;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Memorandum.Api.Controllers;
 
 /// <summary>Проверка живости сервиса.</summary>
 [ApiController]
+[ApiVersionNeutral]
 [Route("api/health")]
 [Tags("Health")]
 public sealed class HealthController(IConfiguration config, IHostEnvironment env) : ControllerBase

@@ -8,7 +8,6 @@ export default function App() {
   const [health, setHealth] = useState<HealthResult | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // защита от гонки: применяем только ответ на последний запрос
   const lastRequest = useRef(0);
   const alive = useRef(true);
 
@@ -25,14 +24,12 @@ export default function App() {
 
     const result = await fetchHealth(path);
 
-    // устаревший ответ (или компонент размонтирован) — не трогаем состояние
     if (!alive.current || id !== lastRequest.current) return;
 
     setHealth(result);
     setLoading(false);
   }, []);
 
-  // при загрузке страницы сразу спрашиваем реальный API
   useEffect(() => {
     void call('/api/health');
   }, [call]);

@@ -8,10 +8,15 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- требуется source-генератором OpenAPI (.NET 10) при включённом GenerateDocumentationFile -->
     <InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.AspNetCore.OpenApi.Generated</InterceptorsNamespaces>
-    <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- 1591: не документировать каждый член; AV0016: AssumeDefaultVersionWhenUnspecified выбран осознанно
+         (curl, healthcheck и Scalar ходят без заголовка версии) -->
+    <NoWarn>$(NoWarn);1591;AV0016</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Asp.Versioning.Mvc" Version="10.2.1" />
+    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="10.2.1" />
+    <PackageReference Include="Asp.Versioning.OpenApi" Version="10.2.1" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.10.0" />
     <!-- транзитивная 2.0.0 содержала уязвимость GHSA-v5pm-xwqc-g5wc -->

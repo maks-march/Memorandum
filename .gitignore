@@ -61,4 +61,5 @@ npm-debug.log*
 !.env.example
 infra/.env
 infra/certs/
+infra/.deployed_tag
 backups/

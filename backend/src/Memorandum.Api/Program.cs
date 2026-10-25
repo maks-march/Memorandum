@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
@@ -7,12 +8,10 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── Конфигурация ─────────────────────────────────────────────────────────────
 var env = builder.Environment;
 var provider = builder.Configuration["Database:Provider"] ?? "Sqlite";
 var allowedHosts = builder.Configuration["AllowedHosts"];
 
-// Fail-fast: прод не должен стартовать с dev-настройками
 if (env.IsProduction())
 {
     if (!string.Equals(provider, "Postgres", StringComparison.OrdinalIgnoreCase))
@@ -34,10 +33,24 @@ if (env.IsProduction())
 }
 
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddProblemDetails();
 
-// За nginx: реальный IP и схема запроса приходят в X-Forwarded-*.
-// API доступен только внутри docker-сети, поэтому доверяем прокси из этой сети.
+builder.Services
+    .AddApiVersioning(o =>
+    {
+        o.DefaultApiVersion = new ApiVersion(1, 0);
+        o.AssumeDefaultVersionWhenUnspecified = true;
+        o.ReportApiVersions = true;
+        o.ApiVersionReader = new HeaderApiVersionReader("X-Api-Version");
+    })
+    .AddMvc()
+    .AddApiExplorer(o =>
+    {
+        o.GroupNameFormat = "'v'VVV";
+        o.SubstituteApiVersionInUrl = false;
+    })
+    .AddOpenApi();
+
 builder.Services.Configure<ForwardedHeadersOptions>(o =>
 {
     o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -45,7 +58,6 @@ builder.Services.Configure<ForwardedHeadersOptions>(o =>
     o.KnownProxies.Clear();
 });
 
-// dev: фронт может ходить напрямую (без Vite-прокси)
 builder.Services.AddCors(o => o.AddPolicy("dev", p => p
     .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
     .AllowAnyHeader()
@@ -56,8 +68,6 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
-// Единый ответ на необработанное исключение: 500 + ProblemDetails + traceId.
-// Детали (стек) отдаются только в Development.
 app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
 {
     var error = context.Features.Get<IExceptionHandlerFeature>()?.Error;
@@ -65,9 +75,6 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
     var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
 
     logger.LogError(error, "Необработанное исключение. traceId={TraceId} path={Path}", traceId, context.Request.Path);
-
-    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-    context.Response.ContentType = "application/problem+json";
 
     var problem = new ProblemDetails
     {
@@ -78,19 +85,21 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
     };
     problem.Extensions["traceId"] = traceId;
 
-    await context.Response.WriteAsJsonAsync(problem);
+    await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");
 }));
 
-// OpenAPI/Scalar: в Development включены всегда, в Production — только флагом OpenApi:Enabled=true.
-// В проде включение разрешено (нужно для демо), но фиксируется предупреждением в логе.
+app.UseStatusCodePages();
+
 var openApiEnabled = app.Configuration.GetValue("OpenApi:Enabled", app.Environment.IsDevelopment());
 if (openApiEnabled)
 {
     if (env.IsProduction())
         app.Logger.LogWarning("OpenApi/Scalar включены в Production (OpenApi:Enabled=true). Не оставляйте так постоянно.");
 
-    app.MapOpenApi();                                                    // /openapi/v1.json
-    app.MapScalarApiReference(o => o.WithTitle("Memorandum API"));       // /scalar/v1
+    app.MapOpenApi().WithDocumentPerVersion();
+    app.MapScalarApiReference(o => o
+        .WithTitle("Memorandum API")
+        .AddDocument("v1", "API v1", "/openapi/v1.json", isDefault: true));
 }
 
 if (env.IsDevelopment())
@@ -101,3 +110,6 @@ if (env.IsDevelopment())
 app.MapControllers();
 
 app.Run();
+
+/// <summary>Точка входа. Публичный partial нужен интеграционным тестам (WebApplicationFactory&lt;Program&gt;).</summary>
+public partial class Program;

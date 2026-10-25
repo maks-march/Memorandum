@@ -1,6 +1,34 @@
 # 02. REST API
 
-Базовый путь `/api/v1`. Формат — JSON, UTF-8. Общие соглашения:
+Базовый путь `/api`. Версия передаётся **заголовком `X-Api-Version`**, а не в URL
+(`/api/health`, а не `/api/v1/health`). Формат — JSON, UTF-8. Общие соглашения:
+
+- **Версия API:** заголовок `X-Api-Version: 1.0`. Если заголовка нет — используется версия по умолчанию (`1.0`), поэтому curl, healthcheck и Scalar работают без настройки. Несуществующая версия (например `9.9`) → **400** + `ProblemDetails`. В ответе приходит `api-supported-versions: 1.0`.
+- **Нейтральные эндпоинты** (`/api/health`, `/mock/api/health`) помечены `[ApiVersionNeutral]`: им версия не нужна, но явно запрошенная несуществующая версия всё равно даёт 400.
+- **Документация:** OpenAPI публикуется по документу на версию — `/openapi/v1.json`; Scalar — `/scalar/v1`.
+- **Ошибки:** любой ответ без тела (400/404) и любое необработанное исключение (500) отдаются как `application/problem+json` с `traceId`.
+
+## Окружение и флаги
+
+| Что | Development | Production |
+|---|---|---|
+| `Database:Provider` | `Sqlite` | только `Postgres` — иначе приложение не стартует |
+| `ConnectionStrings:Postgres` | не требуется | обязательна, иначе приложение не стартует |
+| `Mock:Enabled` | `true` (`/mock/api/health` доступен) | `true` запрещён — приложение не стартует |
+| `AllowedHosts` | допускается `*` | обязателен список доменов; `*` запрещён |
+| `OpenApi:Enabled` | включено всегда | по умолчанию выключено, включается флагом (в лог пишется предупреждение) |
+
+Проверки прод-конфигурации выполняются на старте (fail-fast) и покрыты тестами
+`EnvironmentGuardsTests` — приложение не поднимется с dev-настройками.
+
+**Строгий режим версий.** Сейчас `AssumeDefaultVersionWhenUnspecified = true`: запрос без
+`X-Api-Version` получает версию `1.0`. Обратная настройка — `false` в `Program.cs`: запрос без
+заголовка начнёт получать `400`, при этом эндпоинты с `[ApiVersionNeutral]` (`/api/health`,
+`/mock/api/health`) останутся доступны всегда.
+
+**CORS** настроен только для Development (`http://localhost:5173`), чтобы фронтендер мог ходить
+на API напрямую, минуя Vite-прокси. В Production CORS не включается: фронт и API отдаёт один
+nginx с одного origin.
 
 - **Auth:** cookie-сессия (`HttpOnly`, `Secure`, `SameSite=Lax`) + antiforgery-заголовок `X-XSRF-TOKEN` для мутаций.
 - **Роли:** `SA` = service_admin, `OA` = org_admin, `ED` = editor, `VW` = viewer.

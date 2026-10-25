@@ -15,15 +15,16 @@ export type HealthResult =
 
 const TIMEOUT_MS = 8000;
 
+export const API_VERSION = '1.0';
+
 /** Запрос health по относительному пути — работает и в dev (Vite proxy), и в prod (nginx). */
 export async function fetchHealth(path: string, init?: RequestInit): Promise<HealthResult> {
   const started = performance.now();
   const url = path;
   try {
     const res = await fetch(path, {
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', 'X-Api-Version': API_VERSION },
       ...init,
-      // таймаут обязателен: иначе зависший запрос навсегда оставит индикатор загрузки
       signal: init?.signal ?? AbortSignal.timeout(TIMEOUT_MS),
     });
     const ms = Math.round(performance.now() - started);
