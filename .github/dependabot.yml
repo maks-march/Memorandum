@@ -29,6 +29,11 @@ updates:
     commit-message:
       prefix: npm
     groups:
+      # vite и @vitejs/plugin-react связаны peer-зависимостью: мажор плагина требует
+      # vite ^8, поэтому они приходят одним PR, а не двумя несовместимыми
+      vite-stack-major:
+        patterns: ["vite", "@vitejs/plugin-react"]
+        update-types: ["major"]
       frontend-minor:
         patterns: ["*"]
         update-types: ["minor", "patch"]
