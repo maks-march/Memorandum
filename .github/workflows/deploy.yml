@@ -184,7 +184,12 @@ jobs:
 
           deploy_tag() {
             export IMAGE_TAG="$1"
-            $COMPOSE $COMPOSE_FILES --env-file infra/.env pull api web
+            # certbot нужен в TLS-режиме: без него после рестарта стека нет
+            # продления сертификата, и через ~6 дней сайт упадёт по TLS
+            pull_list="api web"
+            if [ "$tls_enabled" = "1" ]; then pull_list="$pull_list certbot"; fi
+            set -- $pull_list
+            $COMPOSE $COMPOSE_FILES --env-file infra/.env pull "$@"
             # в TLS-режиме COMPOSE_FILES тянет tls.yml: certbot остаётся в стеке
             # и продолжает продление, 443 не пропадает
             $COMPOSE $COMPOSE_FILES --env-file infra/.env \
