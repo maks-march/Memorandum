@@ -72,23 +72,8 @@ server {
     }
 }
 
-# ── HTTPS: включается вручную, когда есть домен и выпущен сертификат ─────────
-# 1) APP_HOST=<домен> ./infra/prod-up.sh --tls      (certbot выпустит сертификат)
-# 2) раскомментировать блок ниже и строку ports "- 443:443" в docker-compose.prod.yml
-# 3) docker compose -f infra/docker-compose.prod.yml restart web
-# server {
-#     listen 443 ssl;
-#     http2 on;
-#     server_name ${APP_HOST};
-#     ssl_certificate     /etc/letsencrypt/live/${APP_HOST}/fullchain.pem;
-#     ssl_certificate_key /etc/letsencrypt/live/${APP_HOST}/privkey.pem;
-#     ssl_protocols TLSv1.2 TLSv1.3;
-#     ssl_session_cache shared:SSL:10m;
-#     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-#     root /usr/share/nginx/html;
-#     include /etc/nginx/snippets/security-headers.conf;
-#     location /mock/ { include /etc/nginx/snippets/security-headers.conf; return 404; }
-#     location /api/  { proxy_pass http://api_upstream; include /etc/nginx/snippets/proxy.conf;
-#                       include /etc/nginx/snippets/security-headers.conf; }
-#     location /      { try_files $uri $uri/ /index.html; include /etc/nginx/snippets/security-headers.conf; }
-# }
+# ── HTTPS ────────────────────────────────────────────────────────────────────
+# Здесь только HTTP — сертификат этому конфигу не нужен, nginx стартует всегда.
+# В режиме TLS (TLS_ENABLED=1 в infra/.env) этот файл целиком заменяется на
+# infra/nginx/tls/default.conf.template: там редирект 80 → 443, /healthz для
+# healthcheck и полный HTTPS-блок. Переключение — через infra/docker-compose.tls.yml.
