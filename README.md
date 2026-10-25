@@ -31,18 +31,23 @@ docker compose -f infra/docker-compose.prod.yml up -d --build
 | `backend` | `restore` → `build -c Release -warnaserror` → 12 интеграционных тестов → trx в артефакты |
 | `frontend` | `npm ci` → `tsc --noEmit` → `vite build` |
 | `actionlint` | линт самих workflow-файлов (официальный образ, включает shellcheck) |
-| `compose + dockerfile` | `docker compose config -q` для dev и prod, `bash -n infra/prod-up.sh` |
+| `infra` | `docker compose config -q` для dev и prod, `bash -n infra/prod-up.sh` |
 
-Ничего не нужно настраивать: ни секретов, ни сервера. Первый прогон — на первом PR.
+### Защита ветки main
 
-**Защита ветки `main`** (Settings → Branches → Add branch protection rule):
-- Branch name pattern: `main`
-- ✅ Require a pull request before merging (1 approval не обязателен для соло-проекта)
-- ✅ **Require status checks to pass before merging** → выбрать `backend — build + tests`, `frontend — typecheck + build`, `actionlint`, `compose + dockerfile`
-- ✅ Require branches to be up to date before merging
-- ✅ Do not allow bypassing the above settings
+Защита описана кодом в `.github/rulesets/main.json` и применяется одной командой:
 
-Без этой настройки workflow только светит красным, но не блокирует merge — включать обязательно.
+```bash
+./.github/rulesets/apply.sh          # создать или обновить ruleset
+./.github/rulesets/apply.sh --check  # показать, что применено
+```
+
+Ruleset `main` запрещает удаление и force push, требует linear history, обязывает
+изменения идти через PR и требует зелёные чеки `backend`, `frontend`, `actionlint`, `infra`
+на актуальном состоянии `main`. Bypass-list пуст — обойти не может никто.
+
+Порядок важен: сначала пушить и дождаться первого зелёного прогона CI, **потом** применять
+ruleset — иначе required-чеки ещё не известны GitHub и merge будет заблокирован навсегда.
 
 ### Тесты
 
