@@ -362,6 +362,11 @@ if [ "$SETUP_CRON" -eq 1 ]; then
 fi
 
 # ── 8. запуск ────────────────────────────────────────────────────────────────
+# TLS_ENABLED фиксируем только по факту пройденного smoke: иначе --skip-up
+# записал бы TLS без сертификата, следующий Deploy поднял бы web с tls.yml,
+# nginx не стартовал бы, и откат шёл бы с тем же оверрайдом — откатиться некуда
+smoke_ok=0
+
 if [ "$DO_UP" -eq 0 ]; then
   step "8/9 Запуск — пропущен (--skip-up)"
 else
@@ -475,6 +480,7 @@ else
     fi
 
     if [ "$fails" -eq 0 ]; then
+      smoke_ok=1
       c_ok "smoke пройден"
     else
       c_err "провалов: $fails — логи: docker compose $compose_args --env-file infra/.env logs --tail 60"
@@ -483,20 +489,27 @@ else
 fi
 
 # ── фиксация TLS ─────────────────────────────────────────────────────────────
-if [ "$TLS" -eq 1 ] && [ "${fails:-0}" -eq 0 ]; then
+if [ "$TLS" -eq 1 ] && [ "$DO_UP" -eq 0 ]; then
+  c_warn "TLS_ENABLED НЕ записан: --skip-up не поднимает стек и не проверяет TLS"
+  TLS_ACTIVE="$current_tls"
+elif [ "$TLS" -eq 1 ] && { [ "$DRY" -eq 1 ] || [ "$smoke_ok" -eq 1 ]; }; then
   if [ "$current_tls" != "1" ]; then
     run_sh "sed -i 's|^TLS_ENABLED=.*|TLS_ENABLED=1|' '$ENV_FILE'"
     if [ "$DRY" -eq 0 ]; then c_ok "TLS_ENABLED=1 записан в infra/.env"; fi
   fi
+  TLS_ACTIVE=1
 elif [ "$TLS" -eq 1 ]; then
   c_warn "smoke в TLS-режиме не прошёл — TLS_ENABLED не включён"
+  TLS_ACTIVE="$current_tls"
+else
+  TLS_ACTIVE=0
 fi
 
 # ── итог ─────────────────────────────────────────────────────────────────────
 step "Готово"
 
 SCHEME="http"
-[ "$TLS" -eq 1 ] && SCHEME="https"
+[ "$TLS_ACTIVE" = "1" ] && SCHEME="https"
 PORT_SUFFIX=""
 [ "$SCHEME" = "http" ] && [ "$WEB_PORT" != "80" ] && PORT_SUFFIX=":$WEB_PORT"
 
@@ -504,7 +517,7 @@ cat <<EOF
 
   Приложение:   ${SCHEME}://${APP_HOST}${PORT_SUFFIX}
   Health:       ${SCHEME}://${APP_HOST}${PORT_SUFFIX}/api/health
-  TLS:          $( [ "$TLS" -eq 1 ] && echo "включён (TLS_ENABLED=1)" || echo "выключен (TLS_ENABLED=0)" )
+  TLS:          $( [ "$TLS_ACTIVE" = "1" ] && echo "включён (TLS_ENABLED=1)" || echo "выключен (TLS_ENABLED=0)" )
   Каталог:      ${TARGET}
   Ветка:        ${BRANCH}
 
