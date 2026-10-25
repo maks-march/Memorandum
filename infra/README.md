@@ -33,8 +33,8 @@ APP_HOST=memorandum.example.ru ./infra/prod-up.sh --tls     # + Let's Encrypt (�
 ./infra/prod-up.sh --rebuild                         # пересобрать образы без кэша
 ```
 
-Скрипт создаёт `infra/.env` с сгенерированным паролем БД (chmod 600), проверяет docker/compose,
-собирает образы и ждёт ответа `/api/health`.
+Скрипт создаёт `infra/.env` с сгенерированным паролем БД (chmod 600), проверяет docker/compose
+(не устанавливает), собирает образы и ждёт ответа `/api/health`.
 
 Вручную:
 
@@ -69,8 +69,15 @@ docker compose -f infra/docker-compose.prod.yml exec api printenv OpenApi__Enabl
 репетиция прода — `./infra/prod-up.sh` (собирает образы на месте).
 
 На VPS деплой запускается кнопкой **Actions → Deploy** (`workflow_dispatch` в Environment
-`production`, требует подтверждения). Workflow делает на сервере: `git reset --hard` → `pull`
-образов из GHCR → `up -d --wait` → smoke (`/`, health, версия = sha, mock → 404).
+`production`, требует подтверждения). Workflow делает на сервере:
+
+1. **зависимости** — проверяет `git`, `curl`, `docker`, `docker compose` и доставляет
+   недостающие через `apt` (нужен `sudo` без пароля), включает демон, добавляет пользователя
+   в группу `docker`;
+2. `git reset --hard` на sha запуска;
+3. `pull` образов из GHCR → `up -d --wait` → smoke (`/`, health, версия = sha, mock → 404).
+
+`prod-up.sh` — вспомогательный и зависимостей не ставит: только проверяет и подсказывает.
 
 Что должно быть на сервере один раз:
 
@@ -92,6 +99,6 @@ infra/
 ├─ web.Dockerfile             build Vite → nginx + статика
 ├─ nginx/default.conf.template  SPA, /api → api:8080, /mock → 404, ACME
 ├─ nginx/snippets/proxy.conf  заголовки прокси
-├─ prod-up.sh                 ручной запуск прода с нуля (сборка, .env, ожидание health)
+├─ prod-up.sh                 вспомогательный: локальный запуск прода (проверка зависимостей, .env, сборка)
 └─ .env.example               переменные для prod (в т.ч. образы GHCR)
 ```

@@ -67,14 +67,16 @@ ruleset — иначе required-чеки ещё не известны GitHub и 
 ### CD — только прод
 
 Разработка деплоя не требует: `docker compose -f infra/docker-compose.dev.yml up` или
-`./infra/prod-up.sh` для локальной репетиции прода.
+`./infra/prod-up.sh` для локальной репетиции прода. `prod-up.sh` — вспомогательный: он проверяет,
+что Docker на месте, и падает с подсказкой, но **ничего не устанавливает**. Установка зависимостей
+на сервере — задача CD.
 
 Для VPS два workflow:
 
 | Что | Файл | Триггер |
 |---|---|---|
 | Образы в GHCR (`memorandum-api`, `memorandum-web`, теги `sha-<7>` + `stable`) | `release.yml` | push в `main` |
-| Деплой на VPS: `git reset` → `compose pull` → `up --wait` → smoke, по кнопке с подтверждением | `deploy.yml` | вручную |
+| Деплой на VPS: проверка и установка зависимостей (`git`, `curl`, `docker`, compose v2) → `git reset` → `compose pull` → `up --wait` → smoke | `deploy.yml` | вручную |
 
 Версия сборки — короткий git sha: `/api/health` отдаёт `"version":"1.0.0+a3f9c21"`, и деплой
 проверяет, что на сервере именно эта сборка. Секреты сервера — `infra/.env` (chmod 600).
