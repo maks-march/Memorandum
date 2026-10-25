@@ -37,6 +37,13 @@ docker compose -f infra/docker-compose.prod.yml up -d --build
 Зависимости обновляет Dependabot (`.github/dependabot.yml`): nuget и npm — еженедельно, actions и
 docker — ежемесячно. Minor и patch приходят одним PR на экосистему, мажоры — отдельными.
 `Microsoft.OpenApi >= 3.0.0` в игноре: `Microsoft.AspNetCore.OpenApi 10.0.x` требует `[2.12.2, 3.0.0)`.
+`vite` и `@vitejs/plugin-react` — связаны peer-зависимостью, их мажоры идут одним PR.
+
+Перед мержем мажорного npm-PR локально:
+
+```bash
+cd frontend && npm ci && npm run build      # то же, что делает джоб frontend
+```
 
 ### Защита ветки main
 

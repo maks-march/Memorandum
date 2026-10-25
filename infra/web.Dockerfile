@@ -5,7 +5,7 @@
 #  APP_VERSION — короткий git sha, попадает в бандл как VITE_APP_VERSION и
 #  показывается бейджем: smoke видит, какая статика реально раздаётся.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 ARG APP_VERSION=local
 ENV VITE_APP_VERSION=${APP_VERSION}
 WORKDIR /app
@@ -14,7 +14,7 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-FROM nginx:1.27-alpine
+FROM nginx:1.29-alpine
 RUN rm -f /etc/nginx/conf.d/default.conf
 COPY infra/nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY infra/nginx/snippets /etc/nginx/snippets
