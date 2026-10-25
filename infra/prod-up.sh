@@ -20,7 +20,6 @@ set -euo pipefail
 
 # ── пути ─────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.prod.yml"
 ENV_FILE="$SCRIPT_DIR/.env"
 ENV_EXAMPLE="$SCRIPT_DIR/.env.example"
@@ -89,14 +88,28 @@ gen_password() {
 
 if [ "$RESET" -eq 1 ]; then
   c_warn "--reset: удаляю контейнеры и тома (БД и сертификаты будут потеряны)"
-  docker compose -f "$COMPOSE_FILE" --env-file "${ENV_FILE}" down -v --remove-orphans 2>/dev/null || true
+  # Если .env уже удалён, compose всё равно нужно чем-то подставить обязательные
+  # переменные — для down достаточно примера, секреты там не используются.
+  down_env="$ENV_FILE"
+  if [ ! -f "$down_env" ]; then
+    down_env="$ENV_EXAMPLE"
+    c_info ".env отсутствует — для остановки использую .env.example"
+  fi
+
+  if ! docker compose -f "$COMPOSE_FILE" --env-file "$down_env" down -v --remove-orphans; then
+    c_err "не удалось удалить контейнеры и тома (см. вывод выше)."
+    c_err "Уберите вручную: docker compose -f $COMPOSE_FILE down -v --remove-orphans"
+    exit 1
+  fi
   rm -f "$ENV_FILE"
 fi
 
 if [ -f "$ENV_FILE" ]; then
   c_ok "использую существующий $ENV_FILE"
-  # shellcheck disable=SC1090
-  set -a; . "$ENV_FILE"; set +a
+  set -a
+  # shellcheck source=/dev/null
+  . "$ENV_FILE"
+  set +a
 
   if [ -n "$APP_HOST_OVERRIDE" ] && [ "$APP_HOST_OVERRIDE" != "${APP_HOST:-}" ]; then
     grep -q '^APP_HOST=' "$ENV_FILE" \
@@ -120,8 +133,10 @@ else
   c_ok "создан $ENV_FILE (пароль БД сгенерирован)"
   c_warn "securely сохраните пароль: grep POSTGRES_PASSWORD $ENV_FILE"
 
-  # shellcheck disable=SC1090
-  set -a; . "$ENV_FILE"; set +a
+  set -a
+  # shellcheck source=/dev/null
+  . "$ENV_FILE"
+  set +a
 fi
 
 if [ -z "${POSTGRES_PASSWORD:-}" ]; then

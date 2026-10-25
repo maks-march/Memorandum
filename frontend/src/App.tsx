@@ -55,7 +55,9 @@ export default function App() {
 
       <section className="card">
         <p className="hint">
-          Запросы идут по относительным путям: <code>/api/health</code> и <code>/mock/api/health</code>.
+          Запросы идут по относительным путям. Версия API — сегмент URL:{' '}
+          <code>/api/v1/system/info</code>; health и mock от версии не зависят
+          (<code>/api/health</code>, <code>/mock/api/health</code>).
           {isDev ? (
             <>
               {' '}В dev их проксирует Vite на <code>{proxyTarget}</code>.
@@ -74,6 +76,9 @@ export default function App() {
           </button>
           <button onClick={() => void call('/mock/api/health?status=500')} disabled={loading} className="secondary">
             mock → 500
+          </button>
+          <button onClick={() => void call('/api/v1/system/info')} disabled={loading} className="secondary">
+            GET /api/v1/system/info
           </button>
         </div>
       </section>

@@ -8,9 +8,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- требуется source-генератором OpenAPI (.NET 10) при включённом GenerateDocumentationFile -->
     <InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.AspNetCore.OpenApi.Generated</InterceptorsNamespaces>
-    <!-- 1591: не документировать каждый член; AV0016: AssumeDefaultVersionWhenUnspecified выбран осознанно
-         (curl, healthcheck и Scalar ходят без заголовка версии) -->
-    <NoWarn>$(NoWarn);1591;AV0016</NoWarn>
+    <!-- 1591: не документировать каждый член -->
+    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

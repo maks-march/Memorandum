@@ -14,10 +14,10 @@ public sealed class TestOnlyBoomController : ControllerBase
     public IActionResult Get() => throw new InvalidOperationException("Тестовое исключение");
 }
 
-/// <summary>Две версии одного маршрута — проверяем выбор версии по заголовку.</summary>
+/// <summary>Две версии одного маршрута — проверяем выбор версии по сегменту URL.</summary>
 [ApiController]
 [ApiVersion("1.0")]
-[Route("test-api/versioned")]
+[Route("test-api/v{version:apiVersion}/versioned")]
 public sealed class TestOnlyVersionedV1Controller : ControllerBase
 {
     [HttpGet]
@@ -26,7 +26,7 @@ public sealed class TestOnlyVersionedV1Controller : ControllerBase
 
 [ApiController]
 [ApiVersion("2.0")]
-[Route("test-api/versioned")]
+[Route("test-api/v{version:apiVersion}/versioned")]
 public sealed class TestOnlyVersionedV2Controller : ControllerBase
 {
     [HttpGet]

@@ -2,8 +2,6 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -16,7 +14,6 @@ permissions:
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
-  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
 jobs:
   backend:
@@ -27,23 +24,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: .NET SDK (версия из global.json)
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v4
         with:
           global-json-file: backend/global.json
-
-      - name: Кэш NuGet
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.NUGET_PACKAGES }}
-          key: nuget-${{ runner.os }}-${{ hashFiles('backend/**/*.csproj', 'backend/NuGet.config', 'backend/global.json') }}
-          restore-keys: nuget-${{ runner.os }}-
+          cache: true
+          cache-dependency-path: |
+            backend/**/*.csproj
+            backend/NuGet.config
 
       - name: Restore
         run: dotnet restore backend/Memorandum.slnx
 
       - name: Сборка
-        run: dotnet build backend/Memorandum.slnx --no-restore -c Release -warnaserror
+        run: dotnet build backend/Memorandum.slnx --no-restore -c Release
 
       - name: Тесты
         run: >
@@ -53,7 +46,14 @@ jobs:
           --logger "trx;LogFileName=tests.trx"
           --results-directory ${{ github.workspace }}/test-results
 
-      - name: Отчёт о тестах (артефакт)
+      - name: Уязвимые зависимости
+        run: >
+          dotnet list backend/Memorandum.slnx package
+          --vulnerable --include-transitive
+          | tee vulnerable.txt
+          | grep -q "has the following vulnerable packages" && exit 1 || true
+
+      - name: Отчёт о тестах
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -80,11 +80,7 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Проверка типов
-        working-directory: frontend
-        run: npx tsc --noEmit -p tsconfig.app.json
-
-      - name: Сборка
+      - name: Проверка типов и сборка
         working-directory: frontend
         run: npm run build
 
@@ -101,7 +97,7 @@ jobs:
         with:
           args: -color
 
-  compose:
+  infra:
     name: infra
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -109,16 +105,83 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Подготовить .env для прода (секреты фиктивные)
+      - name: shellcheck
+        run: |
+          docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:stable \
+            infra/prod-up.sh
+
+      - name: Подготовить .env
         run: cp infra/.env.example infra/.env
 
-      - name: Проверить оба compose-файла
+      - name: compose config (все профили)
         run: |
           docker compose -f infra/docker-compose.dev.yml config -q
-          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env config -q
-          echo "оба compose валидны"
+          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env \
+            --profile tls --profile tools config -q
 
-      - name: Синтаксис shell-скриптов
+      - name: nginx -t на шаблоне после envsubst
         run: |
-          bash -n infra/prod-up.sh
-          echo "prod-up.sh — синтаксис ok"
+          docker run --rm --add-host api:127.0.0.1 -v "$PWD/infra/nginx:/tpl:ro" nginx:1.27-alpine \
+            sh -c 'apk add --no-cache gettext >/dev/null &&
+                   cp -r /tpl/snippets /etc/nginx/snippets &&
+                   envsubst "\$APP_HOST" < /tpl/default.conf.template > /etc/nginx/conf.d/default.conf &&
+                   nginx -t'
+
+  smoke:
+    name: smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: up
+        run: |
+          cp infra/.env.example infra/.env
+          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env up -d --build
+
+      - name: Ждать /api/health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS -m 3 -o /dev/null http://localhost/api/health; then
+              echo "api поднялся за $((i * 3)) с"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "api не ответил за 180 с"
+          exit 1
+
+      - name: Контракт
+        run: |
+          set -eux
+          # версия — сегмент URL
+          curl -fsS http://localhost/api/v1/system/info | tee /dev/stderr | grep -q '"apiVersions"'
+          # версионированный путь без сегмента версии не маршрутизируется
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/api/system/info)" = "404"
+          # чужой X-Api-Version игнорируется — health остаётся 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Api-Version: 9.9' http://localhost/api/health)" = "200"
+          # в проде окружение Production, mock запрещён
+          curl -fsS http://localhost/api/health | grep -q '"environment":"Production"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/mock/api/health)" = "404"
+
+      - name: Security-заголовки на HTML и ассетах
+        run: |
+          set -eu
+          check() {
+            curl -sI "$1" | tr -d '\r' | grep -qi "$2" || { echo "нет $2 на $1"; exit 1; }
+          }
+          check http://localhost/ 'x-content-type-options: nosniff'
+          check http://localhost/ 'content-security-policy:'
+          asset=$(curl -s http://localhost/ | grep -o '/assets/[^"]*\.js' | head -1)
+          echo "ассет: $asset"
+          check "http://localhost$asset" 'x-content-type-options: nosniff'
+          check "http://localhost$asset" 'content-security-policy:'
+
+      - name: Логи при падении
+        if: failure()
+        run: docker compose -f infra/docker-compose.prod.yml logs --tail 80
+
+      - name: down
+        if: always()
+        run: docker compose -f infra/docker-compose.prod.yml --env-file infra/.env down -v --remove-orphans

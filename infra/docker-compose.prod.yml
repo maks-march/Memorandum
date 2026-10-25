@@ -48,6 +48,8 @@ services:
       Mock__Enabled: "false"
       # host-фильтрация: домен + localhost (для healthcheck изнутри контейнера)
       AllowedHosts: "${APP_HOST:-localhost};localhost;127.0.0.1"
+      # доверяем X-Forwarded-* только от nginx из этой docker-сети (см. networks ниже)
+      Proxy__TrustedNetworks__0: "172.28.0.0/16"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
       interval: 20s
@@ -118,6 +120,13 @@ services:
       /bin/sh -c "pg_dump -Fc | gzip -9 > /backups/memorandum-$$(date +%Y%m%d-%H%M%S).dump.gz &&
       find /backups -name '*.gz' -mtime +14 -delete &&
       echo backup-ok: $$(du -h /backups | tail -1)"
+
+networks:
+  default:
+    name: memorandum
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
 
 volumes:
   pgdata:

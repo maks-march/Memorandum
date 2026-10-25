@@ -39,23 +39,35 @@ builder.Services
     .AddApiVersioning(o =>
     {
         o.DefaultApiVersion = new ApiVersion(1, 0);
-        o.AssumeDefaultVersionWhenUnspecified = true;
         o.ReportApiVersions = true;
-        o.ApiVersionReader = new HeaderApiVersionReader("X-Api-Version");
+        o.ApiVersionReader = new UrlSegmentApiVersionReader();
     })
     .AddMvc()
     .AddApiExplorer(o =>
     {
         o.GroupNameFormat = "'v'VVV";
-        o.SubstituteApiVersionInUrl = false;
+        o.SubstituteApiVersionInUrl = true;
     })
     .AddOpenApi();
+
+var trustedProxies = builder.Configuration.GetSection("Proxy:TrustedNetworks").Get<string[]>();
+if (trustedProxies is null or [])
+{
+    if (env.IsProduction())
+        throw new InvalidOperationException(
+            "Production требует Proxy:TrustedNetworks — CIDR docker-сети с nginx " +
+            "(переменная Proxy__TrustedNetworks__0). Без него X-Forwarded-* отбрасываются.");
+
+    trustedProxies = ["172.16.0.0/12"];
+}
 
 builder.Services.Configure<ForwardedHeadersOptions>(o =>
 {
     o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
     o.KnownIPNetworks.Clear();
     o.KnownProxies.Clear();
+    foreach (var cidr in trustedProxies)
+        o.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(cidr));
 });
 
 builder.Services.AddCors(o => o.AddPolicy("dev", p => p

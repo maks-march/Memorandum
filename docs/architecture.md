@@ -1,5 +1,20 @@
 # 01. Архитектура (кратко)
 
+## 0. Текущее состояние (что уже в репозитории)
+
+| Есть | Нет (по плану) |
+|---|---|
+| API на контроллерах: `/api/health`, `/api/system/info`, `/mock/api/health` | бизнес-эндпоинты: организации, проекты, документы, проверки, импорт |
+| Версионирование сегментом URL (`/api/v1/...`), OpenAPI + Scalar по документу на версию | EF Core, миграции, PostgreSQL-схема |
+| Единый обработчик ошибок: `ProblemDetails` + `traceId`, `application/problem+json` | XML-ядро, XSD-валидация, предпросмотр, выгрузка |
+| Dev/prod-разделение с fail-fast проверками конфигурации на старте | аутентификация, роли, изоляция организаций |
+| 15 интеграционных тестов (`backend/tests/Memorandum.Tests`) | фронтенд-экраны (сейчас один тестовый экран health) |
+| CI на PR (5 джобов, включая сборку образов и smoke-прогон прода) + ruleset `main` | CD (сборка образов, реестр, деплой) — отдельный этап |
+| Два compose (dev/prod), nginx, `prod-up.sh` | HTTPS с доменом, мониторинг, бэкапы по расписанию |
+
+Разделы ниже описывают **целевую** архитектуру: контейнеры и таблицы с пометкой *(future)*
+в текущей фазе не поднимаются.
+
 ## 1. Контейнеры
 
 | Контейнер | Образ | Роль | Порты | Состояние |
@@ -23,17 +38,17 @@
 | Слой | Технологии |
 |---|---|
 | Frontend | React 19, TypeScript 5.x, Vite, React Router, Tailwind CSS, shadcn/ui (Radix), TanStack Query, TanStack Table, react-hook-form + zod, dnd-kit, lucide-react |
-| Backend | .NET 10 LTS, ASP.NET Core Minimal API (Vertical Slices), EF Core 10 + Npgsql, FluentValidation, Serilog, встроенный OpenAPI + Scalar |
+| Backend | .NET 10 LTS, ASP.NET Core **контроллеры** (жирные модели, без слоёв сервисов/репозиториев), EF Core 10 + Npgsql, FluentValidation, встроенный OpenAPI + Scalar |
 | XML | только BCL: `System.Xml.Linq` (`XDocument`), `System.Xml.Schema` (`XmlSchemaSet`, `XmlSchemaValidator`), `System.Xml.Xsl`, собственный `PathTrackingXmlReader` |
 | БД | PostgreSQL 17 (`jsonb`, `pg_trgm`, `citext`, `pgcrypto`) |
-| Тесты | xUnit, FluentAssertions, Testcontainers (Postgres), Verify (снапшоты XML), Playwright, `xmllint` (libxml2) |
-| Инфра | Docker, Docker Compose, nginx, GitHub Actions, Ubuntu 24.04 VPS |
+| Тесты | xUnit + `WebApplicationFactory` (интеграционные, уже есть), позже Testcontainers (Postgres), Verify (снапшоты XML), Playwright, `xmllint` (libxml2) |
+| Инфра | Docker, Docker Compose, nginx, GitHub Actions (CI + ruleset), Ubuntu 24.04 VPS |
 
 ## 3. Статика и хранилища
 
 | Что | Где |
 |---|---|
-| SPA (`/`, `/assets/*`, `index.html`) | сборка Vite → `PzXml.Web/dist` → **nginx** (prod), `wwwroot` (dev). Кэш: `immutable` на `/assets`, `no-cache` на `index.html` |
+| SPA (`/`, `/assets/*`, `index.html`) | сборка Vite → `frontend/dist` → **nginx** (prod), Vite dev-server (dev). Кэш: `immutable` на `/assets`, `no-cache` на `index.html` |
 | API | `location /api/` → `proxy_pass http://api_upstream` (балансировка, `least_conn`) |
 | JSONB-модель документов, версии, проверки, пользователи | PostgreSQL |
 | Комплекты XSD (все файлы схемы + xsl) | `schema_package_files.content bytea` в БД + копия в `schemas/` в git с `sha256` |
@@ -51,6 +66,7 @@
   ▼
 nginx
   ├─ TLS-терминация, HTTP→HTTPS, HSTS, gzip/brotli, лимит тела 20 МБ
+  ├─ security-заголовки (CSP, nosniff, X-Frame-Options) — snippet в каждом location
   ├─ /assets/*, /favicon.ico  → отдаёт файл с диска (не доходит до .NET)
   ├─ /api/*, /health          → upstream api (least_conn, keepalive 32, retry 1)
   └─ /*                       → index.html (SPA fallback)
@@ -68,15 +84,15 @@ Kestrel (ASP.NET Core, :8080, UseForwardedHeaders → реальный IP и htt
 9.  Antiforgery                     — для POST/PATCH/DELETE
 10. CurrentUserMiddleware           — userId, orgId, role → scope на запрос
 11. OrgScopeFilter (EF global query filter) — изоляция по org_id
-12. Endpoint (Minimal API handler)
+12. Endpoint (контроллер + жирная модель)
       ├─ FluentValidation DTO
-      ├─ PzXml.Data  → EF Core → PostgreSQL
-      └─ PzXml.Xml   → FieldCatalog → IXmlAdapter(Build/Parse) → XmlSchemaSet(validate) → Preview
+      ├─ EF Core → PostgreSQL
+      └─ XML-ядро → FieldCatalog → IXmlAdapter(Build/Parse) → XmlSchemaSet(validate) → Preview
   ▼
 ProblemDetails | JSON  → клиент
 ```
 
-XML-ядро (`PzXml.Xml`) не знает ни про ASP.NET, ни про EF: вход — модель, выход — `XDocument` / `ValidationResult`. Тестируется без веба.
+XML-ядро (отдельная сборка `Memorandum.Xml`) не знает ни про ASP.NET, ни про EF: вход — модель, выход — `XDocument` / `ValidationResult`. Тестируется без веба.
 
 ## 5. Будущее (заложено в дизайн, не реализуется в v1)
 
@@ -84,7 +100,7 @@ XML-ядро (`PzXml.Xml`) не знает ни про ASP.NET, ни про EF: 
 |---|---|---|
 | **Redis** | кэш скомпилированных `XmlSchemaSet` (сборка дорогая), кэш `form-manifest`, rate-limit счётчики, распределённые сессии при `api` > 1 | `ISchemaSetCache`, `manifest`-эндпоинт, `IDistributedRateLimiter` |
 | **Kafka** | события домена: `document.verified`, `document.exported`, `schema.published`, `user.invited` → уведомления, аудит, регенерация, синхронизация с внешними системами | публикация из хендлеров через `IEventBus`; consumer — отдельный `worker` |
-| **Бэкапы БД** | ежедневный `pg_dump -Fc` + PITR при росте | уже настроен cron (`infra/backup.sh`); при росте — `pgBackRest`/WAL на S3 |
+| **Бэкапы БД** | ежедневный `pg_dump -Fc` + PITR при росте | сервис `backup` в `docker-compose.prod.yml`; при росте — `pgBackRest`/WAL на S3 |
 
 ## 6. Мощности
 

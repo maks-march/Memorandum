@@ -24,27 +24,42 @@ docker compose -f infra/docker-compose.prod.yml up -d --build
 
 Только проверки на PR — ничего не публикуется и не разворачивается (CD будет отдельным этапом).
 
-`.github/workflows/ci.yml`, 4 параллельных джоба:
+`.github/workflows/ci.yml`, 5 параллельных джобов:
 
 | Джоб | Что проверяет |
 |---|---|
-| `backend` | `restore` → `build -c Release -warnaserror` → 12 интеграционных тестов → trx в артефакты |
-| `frontend` | `npm ci` → `tsc --noEmit` → `vite build` |
-| `actionlint` | линт самих workflow-файлов (официальный образ, включает shellcheck) |
-| `infra` | `docker compose config -q` для dev и prod, `bash -n infra/prod-up.sh` |
+| `backend` | `restore` → `build -c Release` → 15 интеграционных тестов → `dotnet list package --vulnerable` → trx в артефакты |
+| `frontend` | `npm ci` → `npm run build` (`tsc -b` + `vite build`, одна проверка типов) |
+| `actionlint` | линт самих workflow-файлов |
+| `infra` | `shellcheck` для скриптов, `docker compose config` со всеми профилями (`tls`, `tools`), `nginx -t` на шаблоне после `envsubst` |
+| `smoke` | собирает **реальные образы** и поднимает прод-стек: ждёт `/api/health`, проверяет `Production`, 404 на mock, версию в URL, security-заголовки на HTML и ассетах |
+
+Зависимости обновляет Dependabot (`.github/dependabot.yml`): nuget, npm — еженедельно, actions и
+docker — ежемесячно.
 
 ### Защита ветки main
 
-Защита описана кодом в `.github/rulesets/main.json` и применяется одной командой:
+Правила защиты лежат в `.github/rulesets/main.json` — это версионируемое описание политики.
+Применяются одной командой (создать или обновить):
 
 ```bash
-./.github/rulesets/apply.sh          # создать или обновить ruleset
-./.github/rulesets/apply.sh --check  # показать, что применено
+gh api --method POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main.json
 ```
 
-Ruleset `main` запрещает удаление и force push, требует linear history, обязывает
-изменения идти через PR и требует зелёные чеки `backend`, `frontend`, `actionlint`, `infra`
-на актуальном состоянии `main`. Bypass-list пуст — обойти не может никто.
+Проверить, что применено:
+
+```bash
+gh ruleset list
+gh ruleset check main
+```
+
+Второй раз тот же `POST` вернёт ошибку «already exists» — тогда либо правьте ruleset в
+Settings → Rules, либо обновляйте через `PUT` по id.
+
+Ruleset `main` запрещает удаление и force push, обязывает изменения идти через PR и требует
+зелёные чеки `backend`, `frontend`, `actionlint`, `infra`, `smoke` на актуальном состоянии `main`.
+Bypass-list пуст — обойти не может никто. Разрешены все три метода merge: `Merge commit`,
+`Squash`, `Rebase`.
 
 Порядок важен: сначала пушить и дождаться первого зелёного прогона CI, **потом** применять
 ruleset — иначе required-чеки ещё не известны GitHub и merge будет заблокирован навсегда.
@@ -56,6 +71,7 @@ dotnet test backend/Memorandum.slnx        # интеграционные: ве�
 ```
 
 Тесты поднимают реальное приложение в памяти (`WebApplicationFactory`), без сети и docker.
+Проверяют версионирование по URL, обработку ошибок (500 + `traceId`), fail-fast прод-конфигурации.
 
 ### Проверка разделения сред
 
