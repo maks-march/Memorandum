@@ -5,7 +5,7 @@
 #  APP_VERSION — короткий git sha, попадает в бандл как VITE_APP_VERSION и
 #  показывается бейджем: smoke видит, какая статика реально раздаётся.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 ARG APP_VERSION=local
 ENV VITE_APP_VERSION=${APP_VERSION}
 WORKDIR /app
