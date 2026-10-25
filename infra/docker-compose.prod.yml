@@ -84,7 +84,8 @@ services:
     environment:
       APP_HOST: ${APP_HOST:-localhost}
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/api/health"]
+      # проверяем статику: nginx не должен становиться unhealthy из-за api
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
       interval: 30s
       timeout: 5s
       retries: 5
