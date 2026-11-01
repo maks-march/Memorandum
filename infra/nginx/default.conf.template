@@ -12,7 +12,7 @@ limit_req_zone $binary_remote_addr zone=api_zone:10m rate=30r/s;
 
 server {
     listen 80;
-    server_name ${APP_HOST} localhost;
+    server_name ${APP_HOST} localhost 127.0.0.1;
 
     root /usr/share/nginx/html;
     index index.html;
@@ -46,6 +46,15 @@ server {
     location /mock/ {
         include /etc/nginx/snippets/security-headers.conf;
         return 404;
+    }
+
+    # Документация API (Scalar + OpenAPI). Отвечает только когда в API включён
+    # OpenApi__Enabled=true; по умолчанию в Production ручки выключены и здесь 404.
+    location ~ ^/(scalar|openapi)(/|$) {
+        limit_req zone=api_zone burst=60 nodelay;
+        proxy_pass http://api_upstream;
+        include /etc/nginx/snippets/proxy.conf;
+        include /etc/nginx/snippets/security-headers-docs.conf;
     }
 
     # API

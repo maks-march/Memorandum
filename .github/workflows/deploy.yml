@@ -154,15 +154,17 @@ jobs:
           web_port="$(env_get WEB_PORT)"
           app_host="$(env_get APP_HOST)"
           app_host="${app_host:-localhost}"
+          https_port="$(env_get HTTPS_PORT)"
+          https_port="${https_port:-443}"
           tls_enabled="$(env_get TLS_ENABLED)"
           COMPOSE_FILES="-f infra/docker-compose.prod.yml"
           if [ "$tls_enabled" = "1" ]; then
             COMPOSE_FILES="$COMPOSE_FILES -f infra/docker-compose.tls.yml"
-            BASE="https://${app_host}"
-            CURL="curl -fsS -k --resolve ${app_host}:443:127.0.0.1"
+            if [ "$https_port" = "443" ]; then BASE="https://${app_host}"; else BASE="https://${app_host}:${https_port}"; fi
+            CURL="curl -fsS -m 15 -k --resolve ${app_host}:${https_port}:127.0.0.1"
           else
             BASE="http://127.0.0.1:${web_port:-80}"
-            CURL="curl -fsS"
+            CURL="curl -fsS -m 15"
           fi
           echo "режим: $( [ "$tls_enabled" = "1" ] && echo 'HTTPS (TLS_ENABLED=1)' || echo 'HTTP' )"
 
@@ -208,7 +210,19 @@ jobs:
 
           if [ -n "$PREVIOUS" ] && [ "$PREVIOUS" != "$TAG" ]; then
             echo "откат на $PREVIOUS" >&2
+            # образы и compose/nginx-конфиги должны быть из одного коммита:
+            # иначе старый образ запускается с новыми файлами из репозитория
+            prev_sha="${PREVIOUS#sha-}"
+            if [ "$prev_sha" != "$PREVIOUS" ] && git cat-file -e "${prev_sha}^{commit}" 2>/dev/null; then
+              git reset --hard --quiet "$prev_sha" \
+                && echo "код откатан на $(git rev-parse --short HEAD)" \
+                || echo "git reset на $prev_sha не удался — откатываю только образы" >&2
+            else
+              echo "коммит $prev_sha не найден — откатываю только образы" >&2
+            fi
             if deploy_tag "$PREVIOUS" && smoke ""; then
+              # .deployed_tag должен описывать то, что реально запущено
+              printf '%s\n' "$PREVIOUS" > infra/.deployed_tag
               echo "**ROLLED BACK** — vps · откат на \`$PREVIOUS\`"
               exit 1
             fi

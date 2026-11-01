@@ -72,13 +72,17 @@ services:
       context: ..
       dockerfile: infra/web.Dockerfile
       args:
-        APP_VERSION: ${SOURCE_REVISION:-local}
+        APP_VERSION: ${APP_VERSION:-local}
     restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     ports:
       - "${WEB_PORT:-80}:80"
+    volumes:
+      # ACME-каталог нужен уже в HTTP-режиме: certbot получает первый
+      # сертификат, пока web ещё работает с HTTP-конфигом
+      - certbot_www:/var/www/certbot:ro
     # сертификаты и ACME-каталог монтирует infra/docker-compose.tls.yml
     environment:
       APP_HOST: ${APP_HOST:-localhost}

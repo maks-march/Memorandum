@@ -20,6 +20,9 @@ services:
       - certbot_www:/var/www/certbot:ro
       # заменяем HTTP-конфиг на вариант с редиректом и HTTPS-блоком
       - ./nginx/tls/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    environment:
+      # попадает в редирект 80 → 443: https://APP_HOST:HTTPS_PORT
+      HTTPS_PORT: ${HTTPS_PORT:-443}
     healthcheck:
       # после редиректа GET / отдаёт 301 — проверяем техническую ручку
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
@@ -45,16 +48,39 @@ services:
         max-file: "5"
     # --deploy-hook трогает флаг: хост-cron (infra/reload-certs.sh) перезагрузит
     # nginx только когда сертификат действительно обновился.
+    #
+    # Все строки скрипта выровнены одинаково: в folded-скаляре (>) строка с
+    # большим отступом сохраняет перевод строки, и shell получает обрывок
+    # команды (`--email: not found`). Одна строка = безопасно.
+    #
+    # certonly повторяется, пока сертификата нет: на первом запуске web может
+    # подниматься дольше, чем certbot успевает постучаться за челленджем.
+    # IP определяем по «нет ничего, кроме цифр и точек»: шаблон *[0-9].[0-9]*
+    # ложно срабатывает на доменах вроде app2.0.example.ru, и certbot уходит
+    # в --ip-address вместо -d.
     entrypoint: >
-      /bin/sh -c "trap exit TERM;
+      /bin/sh -c "
+      trap exit TERM;
       case \"$$APP_HOST\" in
-        *[0-9].[0-9]*) ARGS=\"--ip-address $$APP_HOST --preferred-profile shortlived\"; SLEEP=24h ;;
-        *)             ARGS=\"-d $$APP_HOST\"; SLEEP=12h ;;
+      *[!0-9.]*) ARGS=\"-d $$APP_HOST\"; SLEEP=12h ;;
+      *) ARGS=\"--ip-address $$APP_HOST --preferred-profile shortlived\"; SLEEP=24h ;;
       esac;
-      certbot certonly --webroot -w /var/www/certbot $$ARGS
-        --email $$CERTBOT_EMAIL --agree-tos --no-eff-email -n || true;
+      CERT=\"/etc/letsencrypt/live/$$APP_HOST/fullchain.pem\";
+      i=0;
+      while [ ! -f \"$$CERT\" ]; do
+      i=$$((i + 1));
+      if certbot certonly --webroot -w /var/www/certbot $$ARGS --email $$CERTBOT_EMAIL --agree-tos --no-eff-email -n; then
+      echo \"certbot: сертификат для $$APP_HOST получен\";
+      break;
+      fi;
+      if [ $$i -ge 60 ]; then
+      echo \"certbot: сертификат не получен за 30 минут — остаётся только renew\" >&2;
+      break;
+      fi;
+      echo \"certbot: попытка $$i не удалась, повтор через 30 с\" >&2;
+      sleep 30 & wait $$!;
+      done;
       while :; do
-        certbot renew --webroot -w /var/www/certbot --quiet
-          --deploy-hook 'touch /var/www/certbot/.reload';
-        sleep $$SLEEP & wait $$!;
+      certbot renew --webroot -w /var/www/certbot --quiet --deploy-hook 'touch /var/www/certbot/.reload';
+      sleep $$SLEEP & wait $$!;
       done"

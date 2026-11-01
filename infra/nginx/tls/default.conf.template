@@ -6,7 +6,7 @@
 #  80  — только ACME-челлендж, /healthz и редирект на HTTPS
 #  443 — приложение
 #
-#  envsubst подставит ${APP_HOST} при старте контейнера.
+#  envsubst подставит ${APP_HOST} и ${HTTPS_PORT} при старте контейнера.
 # ─────────────────────────────────────────────────────────────────────────────
 
 upstream api_upstream {
@@ -19,7 +19,8 @@ limit_req_zone $binary_remote_addr zone=api_zone:10m rate=30r/s;
 # ── HTTP: только редирект ────────────────────────────────────────────────────
 server {
     listen 80;
-    server_name ${APP_HOST};
+    # localhost/127.0.0.1 — для docker healthcheck (он ходит на 127.0.0.1/healthz)
+    server_name ${APP_HOST} localhost 127.0.0.1;
 
     server_tokens off;
 
@@ -38,8 +39,17 @@ server {
     }
 
     location / {
-        return 301 https://$host$request_uri;
+        # Хост и порт берём из конфига, а не из заголовка Host: иначе
+        # `Host: evil.example` превращал 301 в open redirect.
+        return 301 https://${APP_HOST}:${HTTPS_PORT}$request_uri;
     }
+}
+
+# ── 80: всё с чужим Host отбрасываем ─────────────────────────────────────────
+server {
+    listen 80 default_server;
+    server_name _;
+    return 444;
 }
 
 # ── HTTPS: приложение ────────────────────────────────────────────────────────
@@ -74,6 +84,16 @@ server {
         include /etc/nginx/snippets/security-headers.conf;
         include /etc/nginx/snippets/hsts.conf;
         return 404;
+    }
+
+    # Документация API (Scalar + OpenAPI). Отвечает только когда в API включён
+    # OpenApi__Enabled=true; по умолчанию в Production ручки выключены и здесь 404.
+    location ~ ^/(scalar|openapi)(/|$) {
+        limit_req zone=api_zone burst=60 nodelay;
+        proxy_pass http://api_upstream;
+        include /etc/nginx/snippets/proxy.conf;
+        include /etc/nginx/snippets/security-headers-docs.conf;
+        include /etc/nginx/snippets/hsts.conf;
     }
 
     location /api/ {
