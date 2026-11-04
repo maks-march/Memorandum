@@ -22,10 +22,8 @@ API_IMAGE=memorandum-api WEB_IMAGE=memorandum-web IMAGE_TAG=local \
   docker compose -f infra/docker-compose.prod.yml --env-file infra/.env up -d
 ```
 
-Инфраструктура, dev/prod-стек, TLS и разбор типовых проблем — [`infra/README.md`](infra/README.md).
-TLS: `./infra/prod-up.sh --tls` выпускает сертификат и переключает web на 443,
-состояние хранится в `TLS_ENABLED` (`infra/.env`) — его читают и скрипт, и CD,
-поэтому деплой по кнопке не снимает HTTPS. Без флага стек работает по HTTP.
+Инфраструктура, dev/prod-стек и разбор типовых проблем — [`infra/README.md`](infra/README.md).
+Наружу открыт только HTTP (`:80`); HTTPS терминируется внешним прокси/CDN.
 
 ### CI
 
@@ -38,7 +36,7 @@ TLS: `./infra/prod-up.sh --tls` выпускает сертификат и пе�
 | `backend` | `restore` → `build -c Release` → 18 интеграционных тестов → `dotnet list package --vulnerable` → trx в артефакты |
 | `frontend` | `npm ci` → `npm run build` (`tsc -b` + `vite build`, одна проверка типов) |
 | `actionlint` | линт самих workflow-файлов |
-| `infra` | `shellcheck` (все скрипты), `docker compose config` со всеми профилями (`tls`, `tools`), `nginx -t` на шаблоне после `envsubst`, **сборка обоих образов без push** и запуск api-образа с прод-конфигом (health 200, без `AllowedHosts` — падение) |
+| `infra` | `shellcheck` (все скрипты), `docker compose config` (dev, prod, профиль `tools`), `nginx -t` на шаблоне после `envsubst`, **сборка обоих образов без push** и запуск api-образа с прод-конфигом (health 200, без `AllowedHosts` — падение) |
 | `smoke` | собирает **реальные образы** и поднимает прод-стек: health, версия в URL, 404 на mock, security-заголовки на HTML и ассетах |
 
 Зависимости обновляет Dependabot (`.github/dependabot.yml`): nuget и npm — еженедельно, actions и

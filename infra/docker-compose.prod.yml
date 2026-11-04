@@ -2,7 +2,7 @@
 #  PROD: nginx (статика SPA + прокси) + api + postgres.
 #  Запуск:  ./infra/prod-up.sh          (образы тянутся из GHCR)
 #  Локальная сборка: docker build -f infra/api.Dockerfile -t memorandum-api:local . (см. infra/README.md)
-#  Наружу:  80. HTTPS — вместе с -f infra/docker-compose.tls.yml (TLS_ENABLED=1 в infra/.env).
+#  Наружу:  80.
 #  API и БД — только внутренняя сеть.
 # ─────────────────────────────────────────────────────────────────────────────
 name: memorandum

@@ -20,7 +20,7 @@
 
 | Контейнер | Образ | Роль | Порты | Состояние |
 |---|---|---|---|---|
-| `nginx` | `nginx:1.29-alpine` | TLS-терминация, раздача SPA, reverse proxy + балансировка `api`, лимиты тела/рейтов, gzip | 80, 443 → наружу | конфиг в git, сертификаты в volume |
+| `nginx` | `nginx:1.29-alpine` | раздача SPA, reverse proxy + балансировка `api`, лимиты тела/рейтов, gzip | 80 → наружу (TLS — снаружи) | конфиг в git |
 | `api` ×1..N | `mcr.microsoft.com/dotnet/aspnet:10.0` (multi-stage из `sdk:10.0` + `node:26`) | REST API + XML-ядро; SPA-сборка лежит в `wwwroot` (используется только в dev, в prod отдаёт nginx) | 8080 (внутр.) | stateless ⇒ можно `--scale api=2` |
 | `db` | `postgres:17-alpine` | все структурированные данные, JSONB-модель документов, XSD-комплекты | 5432 (внутр.) | volume `pgdata` |
 | `backup` | `postgres:17-alpine` (cron в контейнере или host cron) | `pg_dump -Fc` + tar `/data` → volume `backups` | — | — |
@@ -32,7 +32,7 @@
 | *(future)* `alertmanager` | `prom/alertmanager` | алерты в Telegram | 9093 (внутр.) | — |
 | *(future)* `node_/postgres_/nginx_exporter` | prom-* | метрики хоста, БД, nginx | 91xx (внутр.) | — |
 
-Наружу открыты **только 80/443 nginx**. Всё остальное — внутренняя docker-сеть.
+Наружу открыт **только 80 nginx**. Всё остальное — внутренняя docker-сеть.
 
 ## 2. Языки, фреймворки, библиотеки
 
@@ -63,10 +63,10 @@
 
 ```
 Клиент (SPA)
-  │ HTTPS 443
+  │ HTTP 80
   ▼
 nginx
-  ├─ TLS-терминация, HTTP→HTTPS, HSTS, gzip/brotli, лимит тела 20 МБ
+  ├─ gzip, лимит тела 20 МБ (HTTPS и HSTS — на внешнем прокси, если он есть)
   ├─ security-заголовки (CSP, nosniff, X-Frame-Options) — snippet в каждом location
   ├─ /assets/*, /favicon.ico  → отдаёт файл с диска (не доходит до .NET)
   ├─ /api/*, /health          → upstream api (least_conn, keepalive 32, retry 1)
@@ -124,6 +124,6 @@ XML-ядро (отдельная сборка `Memorandum.Xml`) не знает 
 - бэкап: 1×/сутки, хранение 14 дней, ~10–30 МБ/дамп на v1.
 
 ### Периметр (DNS/сеть)
-- 1 домен, A-запись → VPS, `ufw`: 22 (по ключу), 80, 443;
-- TLS: Let's Encrypt через certbot на nginx (в compose — отдельный контейнер `certbot` или certbot на хосте);
+- 1 домен, A-запись → VPS, `ufw`: 22 (по ключу), 80;
+- TLS: в репозитории не настроен — терминируется внешним прокси/CDN перед nginx;
 - продовые секреты — `.env` на сервере (chmod 600), не в git.

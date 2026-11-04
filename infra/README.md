@@ -3,7 +3,7 @@
 | Файл | Что поднимает | Куда смотреть |
 |---|---|---|
 | `docker-compose.dev.yml` | api (`dotnet watch`, SQLite) + web (Vite dev-server) | фронт `:5173`, API `:5000`, Scalar `:5000/scalar/v1` |
-| `docker-compose.prod.yml` | nginx (SPA + прокси) + api (Postgres) + db + опц. certbot | `:80` (и `:443` с профилем `tls`) |
+| `docker-compose.prod.yml` | nginx (SPA + прокси) + api (Postgres) + db | `:80` |
 
 ## DEV
 
@@ -28,7 +28,6 @@ cd frontend && npm install && npm run dev             # http://localhost:5173
 
 ```bash
 ./infra/prod-up.sh                                   # собрать, поднять, дождаться healthy
-APP_HOST=memorandum.example.ru ./infra/prod-up.sh --tls     # + Let's Encrypt (нужен домен)
 ./infra/prod-up.sh --reset                           # снести данные и поднять заново
 ./infra/prod-up.sh --rebuild                         # пересобрать образы без кэша
 ```
@@ -48,36 +47,8 @@ API_IMAGE=memorandum-api WEB_IMAGE=memorandum-web IMAGE_TAG=local \
 curl -fsS http://localhost/api/health
 ```
 
-TLS — `infra/docker-compose.tls.yml` поверх прод-стека. Нужен домен в `APP_HOST`
-(или публичный IP) и A-запись на сервер.
-
-```bash
-# одной командой: приложение → certbot → ожидание сертификата → web на 443 → smoke по https
-./infra/prod-up.sh --app-host example.ru --tls
-
-# вручную
-docker compose -f infra/docker-compose.prod.yml -f infra/docker-compose.tls.yml \
-  --env-file infra/.env up -d db api web
-docker compose -f infra/docker-compose.prod.yml -f infra/docker-compose.tls.yml \
-  --env-file infra/.env up -d certbot
-docker compose -f infra/docker-compose.prod.yml -f infra/docker-compose.tls.yml \
-  --env-file infra/.env logs certbot
-```
-
-Состояние режима — `TLS_ENABLED` в `infra/.env`: его ставит скрипт после успешного
-smoke по https, читают и скрипт, и `deploy.yml` (иначе деплой по кнопке пересоздал бы
-web без оверрайда и 443 бы пропал). Откат на HTTP — `TLS_ENABLED=0` и
-`./infra/prod-up.sh` без `--tls`.
-
-Override добавляет 443, тома `certs`/`certbot_www`, сервис `certbot` и подменяет
-шаблон nginx на `infra/nginx/tls/default.conf.template` — в нём сразу и ACME на 80,
-и `301` на 443, и HTTPS-блок с HSTS (`snippets/hsts.conf` в каждом location).
-`/healthz` — техническая ручка для healthcheck контейнера, не публичный монитор.
-
-Certbot: домен — `-d $APP_HOST`, renew раз в 12 ч; IP — `--ip-address $APP_HOST
---preferred-profile shortlived` (сертификаты на IP живут ~6 дней), renew раз в сутки.
-Обновление само nginx не перезагружает: `--deploy-hook` трогает
-`/var/www/certbot/.reload`.
+HTTPS в репозитории не настраивается: наружу открыт только HTTP, а TLS терминирует
+внешний прокси/CDN перед контейнером (там же включается HSTS).
 
 Отличия прода (проверяется автоматически при старте API):
 - `Database:Provider` обязан быть `Postgres`, иначе приложение не стартует;
@@ -134,11 +105,7 @@ infra/
 ├─ api.Dockerfile             publish API, non-root (собирается в CI или вручную)
 ├─ web.Dockerfile             build Vite → nginx + статика (собирается в CI или вручную)
 ├─ nginx/default.conf.template  SPA, /api → api:8080, /mock → 404
-├─ docker-compose.tls.yml     TLS поверх прода: 443, сертификаты, certbot
-├─ nginx/tls/default.conf.template  подменяет HTTP-шаблон в TLS-режиме (80 → 443, HSTS, /healthz)
-├─ reload-certs.sh            nginx -s reload после продления сертификата (по флагу)
 ├─ nginx/snippets/proxy.conf  заголовки прокси
-├─ nginx/snippets/hsts.conf   HSTS для HTTPS-блоков
 ├─ prod-up.sh                 подготовка сервера и первый запуск прода (пакеты, клон, .env, smoke)
 └─ .env.example               переменные для prod (в т.ч. образы GHCR)
 ```
