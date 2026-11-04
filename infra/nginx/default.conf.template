@@ -1,5 +1,5 @@
 # Шаблон nginx для прода. envsubst подставит ${APP_HOST} при старте контейнера.
-# Включает: раздачу SPA, прокси /api, запрет /mock, ACME-челлендж,
+# Включает: раздачу SPA, прокси /api, запрет /mock,
 # gzip и базовые security-заголовки.
 
 upstream api_upstream {
@@ -35,12 +35,6 @@ server {
     # snippet подключён в каждом location (а не только на уровне server).
     # HSTS намеренно не включён: он безопасен только при работающем HTTPS.
     include /etc/nginx/snippets/security-headers.conf;
-
-    # ACME-челлендж (нужен и без TLS-профиля — не мешает)
-    location /.well-known/acme-challenge/ {
-        root /var/www/certbot;
-        include /etc/nginx/snippets/security-headers.conf;
-    }
 
     # mock-эндпоинты в проде запрещены на уровне nginx
     location /mock/ {

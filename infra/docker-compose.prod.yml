@@ -1,6 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 #  PROD: nginx (статика SPA + прокси) + api + postgres.
-#  Запуск:  ./infra/prod-up.sh          (или docker compose -f infra/docker-compose.prod.yml up -d --build)
+#  Запуск:  ./infra/prod-up.sh          (образы тянутся из GHCR)
+#  Локальная сборка: docker build -f infra/api.Dockerfile -t memorandum-api:local . (см. infra/README.md)
 #  Наружу:  80. HTTPS — вместе с -f infra/docker-compose.tls.yml (TLS_ENABLED=1 в infra/.env).
 #  API и БД — только внутренняя сеть.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -34,13 +35,8 @@ services:
     # порт наружу не публикуем — только внутри сети
 
   api:
-    # Образ из GHCR (деплой на VPS). build — для локального запуска через prod-up.sh.
+    # готовый образ из GHCR — собирается в CI (Release), на сервере не собирается
     image: ${API_IMAGE:-ghcr.io/maks-march/memorandum-api}:${IMAGE_TAG:-stable}
-    build:
-      context: ..
-      dockerfile: infra/api.Dockerfile
-      args:
-        SOURCE_REVISION: ${SOURCE_REVISION:-local}
     restart: unless-stopped
     depends_on:
       db:
@@ -68,18 +64,12 @@ services:
 
   web:
     image: ${WEB_IMAGE:-ghcr.io/maks-march/memorandum-web}:${IMAGE_TAG:-stable}
-    build:
-      context: ..
-      dockerfile: infra/web.Dockerfile
-      args:
-        APP_VERSION: ${SOURCE_REVISION:-local}
     restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     ports:
       - "${WEB_PORT:-80}:80"
-    # сертификаты и ACME-каталог монтирует infra/docker-compose.tls.yml
     environment:
       APP_HOST: ${APP_HOST:-localhost}
     healthcheck:
@@ -93,27 +83,6 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  # Бэкап БД: docker compose -f infra/docker-compose.prod.yml --profile tools run --rm backup
-  # Поставить в cron хоста: 0 3 * * * cd /opt/memorandum && docker compose -f infra/docker-compose.prod.yml --profile tools run --rm backup
-  backup:
-    image: postgres:17-alpine
-    profiles: ["tools"]
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      PGHOST: db
-      PGUSER: ${POSTGRES_USER:-memorandum}
-      PGPASSWORD: ${POSTGRES_PASSWORD}
-      PGDATABASE: ${POSTGRES_DB:-memorandum}
-    volumes:
-      - backups:/backups
-    logging: *default-logging
-    entrypoint: >
-      /bin/sh -c "pg_dump -Fc | gzip -9 > /backups/memorandum-$$(date +%Y%m%d-%H%M%S).dump.gz &&
-      find /backups -name '*.gz' -mtime +14 -delete &&
-      echo backup-ok: $$(du -h /backups | tail -1)"
-
 networks:
   default:
     name: memorandum
@@ -123,6 +92,3 @@ networks:
 
 volumes:
   pgdata:
-  certs:
-  certbot_www:
-  backups:
