@@ -15,7 +15,11 @@ docker compose -f infra/docker-compose.dev.yml up     # фронт :5173, API :5
 
 ```bash
 cp infra/.env.example infra/.env && chmod 600 infra/.env    # задать POSTGRES_PASSWORD, APP_HOST
-docker compose -f infra/docker-compose.prod.yml up -d --build
+# локальная репетиция прода: собрать образы и поднять стек
+docker build -f infra/api.Dockerfile -t memorandum-api:local .
+docker build -f infra/web.Dockerfile -t memorandum-web:local .
+API_IMAGE=memorandum-api WEB_IMAGE=memorandum-web IMAGE_TAG=local \
+  docker compose -f infra/docker-compose.prod.yml --env-file infra/.env up -d
 ```
 
 Инфраструктура, dev/prod-стек, TLS и разбор типовых проблем — [`infra/README.md`](infra/README.md).
@@ -82,7 +86,7 @@ ruleset — иначе required-чеки ещё не известны GitHub и 
 Первый запуск на сервере — один раз:
 
 ```bash
-sudo ./infra/prod-up.sh --app-host <IP или домен> --ssh-key ~/.ssh/memorandum_deploy.pub --ufw --cron
+sudo ./infra/prod-up.sh --app-host <IP или домен> --ssh-key ~/.ssh/memorandum_deploy.pub --ufw
 ```
 
 Скрипт ставит пакеты и docker, клонирует репозиторий в `/opt/memorandum`, создаёт `infra/.env`,

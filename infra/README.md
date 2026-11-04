@@ -34,13 +34,17 @@ APP_HOST=memorandum.example.ru ./infra/prod-up.sh --tls     # + Let's Encrypt (�
 ```
 
 Скрипт создаёт `infra/.env` с сгенерированным паролем БД (chmod 600), проверяет docker/compose
-(не устанавливает), собирает образы и ждёт ответа `/api/health`.
+(не устанавливает), тянет образы и ждёт ответа `/api/health`.
 
 Вручную:
 
 ```bash
 cp infra/.env.example infra/.env && $EDITOR infra/.env && chmod 600 infra/.env
-docker compose -f infra/docker-compose.prod.yml up -d --build
+# локальная репетиция прода: собрать образы и поднять стек
+docker build -f infra/api.Dockerfile -t memorandum-api:local .
+docker build -f infra/web.Dockerfile -t memorandum-web:local .
+API_IMAGE=memorandum-api WEB_IMAGE=memorandum-web IMAGE_TAG=local \
+  docker compose -f infra/docker-compose.prod.yml --env-file infra/.env up -d
 curl -fsS http://localhost/api/health
 ```
 
@@ -73,8 +77,7 @@ Override добавляет 443, тома `certs`/`certbot_www`, сервис `c
 Certbot: домен — `-d $APP_HOST`, renew раз в 12 ч; IP — `--ip-address $APP_HOST
 --preferred-profile shortlived` (сертификаты на IP живут ~6 дней), renew раз в сутки.
 Обновление само nginx не перезагружает: `--deploy-hook` трогает
-`/var/www/certbot/.reload`, а хост-cron с `infra/reload-certs.sh` делает
-`nginx -s reload` только при наличии флага (`--cron` прописывает его на 04:00).
+`/var/www/certbot/.reload`.
 
 Отличия прода (проверяется автоматически при старте API):
 - `Database:Provider` обязан быть `Postgres`, иначе приложение не стартует;
@@ -95,12 +98,12 @@ Dev деплоя не требует: `docker compose -f infra/docker-compose.de
 
 ```bash
 sudo ./infra/prod-up.sh --app-host 203.0.113.10
-sudo ./infra/prod-up.sh --app-host example.ru --ssh-key ~/.ssh/deploy.pub --ufw --cron
+sudo ./infra/prod-up.sh --app-host example.ru --ssh-key ~/.ssh/deploy.pub --ufw
 sudo ./infra/prod-up.sh --app-host 203.0.113.10 --dry-run     # только показать команды
 ```
 
 Флаги: `--app-host` (обязателен), `--web-port`, `--path` (по умолчанию `/opt/memorandum`),
-`--branch`, `--user`, `--ssh-key`, `--ufw`, `--cron`, `--skip-up`, `--force`, `--dry-run`.
+`--branch`, `--user`, `--ssh-key`, `--ufw`, `--skip-up`, `--force`, `--dry-run`.
 Скрипт не пушит в git и не меняет отслеживаемые файлы (кроме `infra/.env`), поэтому
 последующий CD с `git reset --hard` ничего не ломает.
 
@@ -127,10 +130,10 @@ sudo ./infra/prod-up.sh --app-host 203.0.113.10 --dry-run     # только п�
 ```
 infra/
 ├─ docker-compose.dev.yml     dev: api + vite
-├─ docker-compose.prod.yml    prod: web + api + db + backup (профиль tools)
-├─ api.Dockerfile             publish API, non-root
-├─ web.Dockerfile             build Vite → nginx + статика
-├─ nginx/default.conf.template  SPA, /api → api:8080, /mock → 404, ACME
+├─ docker-compose.prod.yml    prod: web + api + db
+├─ api.Dockerfile             publish API, non-root (собирается в CI или вручную)
+├─ web.Dockerfile             build Vite → nginx + статика (собирается в CI или вручную)
+├─ nginx/default.conf.template  SPA, /api → api:8080, /mock → 404
 ├─ docker-compose.tls.yml     TLS поверх прода: 443, сертификаты, certbot
 ├─ nginx/tls/default.conf.template  подменяет HTTP-шаблон в TLS-режиме (80 → 443, HSTS, /healthz)
 ├─ reload-certs.sh            nginx -s reload после продления сертификата (по флагу)

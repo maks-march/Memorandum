@@ -9,7 +9,7 @@
 #
 #  Использование:
 #    sudo ./infra/prod-up.sh --app-host 203.0.113.10
-#    sudo ./infra/prod-up.sh --app-host memorandum.example.ru --web-port 80 --ufw --cron
+#    sudo ./infra/prod-up.sh --app-host memorandum.example.ru --web-port 80 --ufw
 #    sudo ./infra/prod-up.sh --app-host 203.0.113.10 --dry-run    # только показать
 #
 #  Флаги:
@@ -19,9 +19,7 @@
 #    --branch BR         ветка, по умолчанию main
 #    --user USER         владелец клона и деплой-пользователь (по умолчанию — текущий)
 #    --ssh-key FILE      добавить публичный ключ в authorized_keys этого пользователя
-#    --tls               включить HTTPS: certbot + редирект 80 → 443, состояние в TLS_ENABLED
-#    --ufw               настроить ufw: 22, WEB_PORT и 443
-#    --cron              поставить бэкап БД в cron (03:00)
+#    --ufw               настроить ufw: 22 и WEB_PORT
 #    --skip-up           только подготовка, без pull/up/smoke
 #    --force             перезаписать infra/.env (пароль БД будет новым!)
 #    --dry-run           показать команды, ничего не выполнять
@@ -37,8 +35,6 @@ WEB_PORT="80"
 DEPLOY_USER=""
 SSH_KEY_FILE=""
 SETUP_UFW=0
-SETUP_CRON=0
-TLS=0
 DO_UP=1
 FORCE=0
 DRY=0
@@ -61,9 +57,7 @@ while [ $# -gt 0 ]; do
     --branch)   BRANCH="${2:-}";   shift 2 ;;
     --user)     DEPLOY_USER="${2:-}"; shift 2 ;;
     --ssh-key)  SSH_KEY_FILE="${2:-}"; shift 2 ;;
-    --tls)      TLS=1; shift ;;
     --ufw)      SETUP_UFW=1; shift ;;
-    --cron)     SETUP_CRON=1; shift ;;
     --skip-up)  DO_UP=0; shift ;;
     --force)    FORCE=1; shift ;;
     --dry-run)  DRY=1; shift ;;
@@ -113,7 +107,7 @@ case "$WEB_PORT" in
 esac
 
 # ── 1. проверка системы ──────────────────────────────────────────────────────
-step "1/9 Проверка системы"
+step "1/6 Проверка системы"
 
 if [ -r /etc/os-release ]; then
   # shellcheck disable=SC1091
@@ -147,7 +141,7 @@ else
 fi
 
 # ── 2. пакеты ────────────────────────────────────────────────────────────────
-step "2/9 Пакеты: git, curl, docker, compose v2"
+step "2/6 Пакеты: git, curl, docker, compose v2"
 
 missing=""
 for c in git curl; do command -v "$c" >/dev/null 2>&1 || missing="$missing $c"; done
@@ -200,7 +194,7 @@ else
 fi
 
 # ── 3. каталог и код ─────────────────────────────────────────────────────────
-step "3/9 Каталог и код ($TARGET, ветка $BRANCH)"
+step "3/6 Каталог и код ($TARGET, ветка $BRANCH)"
 
 run_sh "$SUDO mkdir -p '$TARGET'"
 if [ "$(id -u)" -eq 0 ] && [ "$DEPLOY_USER" != "root" ]; then
@@ -230,7 +224,7 @@ if [ "$DRY" -eq 0 ]; then
 fi
 
 # ── 4. infra/.env ────────────────────────────────────────────────────────────
-step "4/9 Настройки (infra/.env)"
+step "4/6 Настройки (infra/.env)"
 
 ENV_FILE="$TARGET/infra/.env"
 ENV_EXAMPLE="$TARGET/infra/.env.example"
@@ -276,42 +270,11 @@ else
   c_warn "СОХРАНИТЕ пароль БД: $DB_PASS"
 fi
 
-# ── 5. режим TLS ─────────────────────────────────────────────────────────────
-step "5/9 Режим TLS"
-
 COMPOSE_FILES=(-f "$TARGET/infra/docker-compose.prod.yml")
-
-# состояние читаем из infra/.env: тот же флаг использует CD, иначе деплой
-# по кнопке пересоздаст web без TLS-оверрайда и сайт молча уйдёт на HTTP
-current_tls="$(grep -E '^TLS_ENABLED=' "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
-if [ -z "$current_tls" ]; then
-  current_tls=0
-  run_sh "printf 'TLS_ENABLED=0\\n' >> '$ENV_FILE'"
-fi
-
-if [ "$TLS" -eq 1 ]; then
-  case "$APP_HOST" in
-    localhost|127.0.0.1|*[!a-zA-Z0-9.-]*)
-      c_err "--tls: APP_HOST='$APP_HOST' не годится — нужен домен или публичный IP"; exit 2 ;;
-  esac
-  # 443 должен быть свободен: его займёт web после выпуска сертификата
-  if [ "$DRY" -eq 0 ] && [ "$current_tls" != "1" ] \
-     && { ss -ltn 2>/dev/null || netstat -ltn 2>/dev/null || true; } | grep -qE '[:.]443[[:space:]]'; then
-    c_err "порт 443 уже занят — освободите его и повторите"; exit 2
-  fi
-  if [ "$current_tls" = "1" ]; then c_ok "TLS уже включён"; else c_info "включаю TLS (TLS_ENABLED=1)"; fi
-  COMPOSE_FILES+=(-f "$TARGET/infra/docker-compose.tls.yml")
-elif [ "$current_tls" = "1" ]; then
-  c_ok "TLS включён ранее (TLS_ENABLED=1) — оставляю"
-  COMPOSE_FILES+=(-f "$TARGET/infra/docker-compose.tls.yml")
-else
-  c_ok "HTTP-режим (TLS_ENABLED=0)"
-fi
-
 compose_args="${COMPOSE_FILES[*]}"
 
-# ── 6. образы ────────────────────────────────────────────────────────────────
-step "6/9 Образы из GHCR"
+# ── 5. образы ────────────────────────────────────────────────────────────────
+step "5/6 Образы из GHCR"
 
 if command -v docker >/dev/null 2>&1; then
   if $DOCKER manifest inspect ghcr.io/maks-march/memorandum-api:stable >/dev/null 2>&1; then
@@ -324,16 +287,15 @@ elif [ "$DRY" -eq 1 ]; then
   c_info "dry-run: docker ещё не установлен — проверка образов пропущена"
 fi
 
-# ── 7. опционально: ufw, cron, ssh-ключ ──────────────────────────────────────
+# ── опционально: ufw и ssh-ключ ──────────────────────────────────────────────
 if [ "$SETUP_UFW" -eq 1 ]; then
-  step "7/9 Файрвол (ufw)"
+  step "Файрвол (ufw)"
   run_sh "$SUDO ufw allow 22/tcp >/dev/null 2>&1 || true"
   run_sh "$SUDO ufw allow '$WEB_PORT'/tcp >/dev/null 2>&1 || true"
-  run_sh "$SUDO ufw allow 443/tcp >/dev/null 2>&1 || true"
   run_sh "$SUDO ufw --force enable >/dev/null 2>&1 || true"
-  c_ok "открыты 22, $WEB_PORT, 443"
+  c_ok "открыты 22 и $WEB_PORT"
 else
-  step "7/9 Файрвол (ufw) — пропущен (--ufw)"
+  step "Файрвол (ufw) — пропущен (--ufw)"
 fi
 
 if [ -n "$SSH_KEY_FILE" ]; then
@@ -348,85 +310,22 @@ if [ -n "$SSH_KEY_FILE" ]; then
   fi
 fi
 
-if [ "$SETUP_CRON" -eq 1 ]; then
-  c_info "ставлю бэкап БД в cron (03:00)"
-  CRON_LINE="0 3 * * * cd $TARGET && docker compose -f infra/docker-compose.prod.yml --env-file infra/.env --profile tools run --rm backup >/dev/null 2>&1"
-  run_sh "( crontab -l 2>/dev/null | grep -vF 'profile tools run --rm backup' ; echo '$CRON_LINE' ) | crontab -"
-  c_ok "бэкап БД в cron (03:00)"
-
-  if [ "$TLS" -eq 1 ] || [ "$current_tls" = "1" ]; then
-    CRON_TLS="0 4 * * * cd $TARGET && ./infra/reload-certs.sh >> /var/log/memorandum-certs.log 2>&1"
-    run_sh "( crontab -l 2>/dev/null | grep -vF 'infra/reload-certs.sh' ; echo '$CRON_TLS' ) | crontab -"
-    c_ok "перезагрузка nginx после продления сертификата (04:00)"
-  fi
-fi
-
-# ── 8. запуск ────────────────────────────────────────────────────────────────
-# TLS_ENABLED фиксируем только по факту пройденного smoke: иначе --skip-up
-# записал бы TLS без сертификата, следующий Deploy поднял бы web с tls.yml,
-# nginx не стартовал бы, и откат шёл бы с тем же оверрайдом — откатиться некуда
-smoke_ok=0
-
+# ── 6. запуск ────────────────────────────────────────────────────────────────
 if [ "$DO_UP" -eq 0 ]; then
-  step "8/9 Запуск — пропущен (--skip-up)"
+  step "6/6 Запуск — пропущен (--skip-up)"
 else
-  step "8/9 Запуск стека"
+  step "6/6 Запуск и smoke"
 
   if [ "$DRY" -eq 1 ]; then
     printf '   \033[90m$ cd %s && %s compose %s --env-file infra/.env pull\033[0m\n' "$TARGET" "$DOCKER" "$compose_args"
     printf '   \033[90m$ %s compose %s --env-file infra/.env up -d --remove-orphans db api web\033[0m\n' "$DOCKER" "$compose_args"
-    [ "$TLS" -eq 1 ] && printf '   \033[90m$ %s compose %s --env-file infra/.env up -d certbot\033[0m\n' "$DOCKER" "$compose_args"
   else
     cd "$TARGET"
     run_sh "$DOCKER compose $compose_args --env-file infra/.env pull"
-
-    # сначала приложение, certbot — отдельно: конфиг nginx в TLS-режиме требует
-    # сертификат, а его на первом запуске ещё нет
     run_sh "$DOCKER compose $compose_args --env-file infra/.env up -d --remove-orphans db api web"
 
-    if [ "$TLS" -eq 1 ] || [ "$current_tls" = "1" ]; then
-      run_sh "$DOCKER compose $compose_args --env-file infra/.env up -d certbot"
-
-      if [ "$DRY" -eq 0 ]; then
-        step "Ожидание сертификата"
-        cert_ready=0
-        for _ in $(seq 1 30); do
-          if $DOCKER run --rm -v memorandum_certs:/c alpine:3.21 \
-               test -f "/c/live/$APP_HOST/fullchain.pem" >/dev/null 2>&1; then
-            cert_ready=1; break
-          fi
-          printf '.'; sleep 5
-        done
-        printf '\n'
-
-        if [ "$cert_ready" -eq 1 ]; then
-          c_ok "сертификат для $APP_HOST получен"
-          # web поднимаем заново: без сертификата его конфиг не стартовал
-          run_sh "$DOCKER compose $compose_args --env-file infra/.env up -d --force-recreate web"
-        else
-          c_err "сертификат не получен за 150 с — TLS НЕ включён"
-          # shellcheck disable=SC2086  # compose_args — список -f, нужен сплит
-          $DOCKER compose $compose_args --env-file infra/.env logs --tail 40 certbot || true
-          if [ "$current_tls" != "1" ]; then
-            c_info "оставляю HTTP-режим (TLS_ENABLED=0)"
-            COMPOSE_FILES=(-f "$TARGET/infra/docker-compose.prod.yml")
-            compose_args="${COMPOSE_FILES[*]}"
-            TLS=0
-            run_sh "$DOCKER compose $compose_args --env-file infra/.env up -d --force-recreate web"
-          fi
-        fi
-      fi
-    fi
-
-    if [ "$TLS" -eq 1 ]; then
-      # ходим на localhost, но с настоящими Host/SNI: иначе nginx отдаст
-      # default-сервер, и ни редирект, ни HSTS толком не проверить
-      BASE="https://$APP_HOST"
-      CURL=(curl -fsSk --resolve "$APP_HOST:443:127.0.0.1")
-    else
-      BASE="http://127.0.0.1:${WEB_PORT}"
-      CURL=(curl -fsS)
-    fi
+    BASE="http://127.0.0.1:${WEB_PORT}"
+    CURL=(curl -fsS)
 
     printf '   ждём /api/health'
     up=0
@@ -437,8 +336,8 @@ else
     printf '\n'
     if [ "$up" -eq 1 ]; then c_ok "api отвечает"; else c_err "api не ответил за 120 с — смотрите: docker compose logs api"; fi
 
-    # ── 9. smoke ─────────────────────────────────────────────────────────────
-    step "9/9 Smoke"
+    # ── smoke ────────────────────────────────────────────────────────────────
+    step "Smoke"
 
     fails=0
     check() { # url, ожидание, описание
@@ -468,19 +367,7 @@ else
       c_warn "нет CSP на / — проверьте nginx-сниппет"
     fi
 
-    if [ "$TLS" -eq 1 ]; then
-      if curl -sIk -m 5 "$BASE/" 2>/dev/null | grep -qi 'strict-transport-security'; then
-        c_ok "HSTS отдаётся"
-      else
-        c_err "нет HSTS — подключите snippets/hsts.conf в HTTPS-блок"; fails=$((fails+1))
-      fi
-      # редирект 80 → 443
-      code="$(curl -s -o /dev/null -w '%{http_code}' -m 5 -H "Host: $APP_HOST" "http://127.0.0.1:${WEB_PORT}/" 2>/dev/null || echo 000)"
-      if [ "$code" = "301" ]; then c_ok "HTTP → HTTPS редирект (301)"; else c_err "нет редиректа на HTTPS: получили $code"; fails=$((fails+1)); fi
-    fi
-
     if [ "$fails" -eq 0 ]; then
-      smoke_ok=1
       c_ok "smoke пройден"
     else
       c_err "провалов: $fails — логи: docker compose $compose_args --env-file infra/.env logs --tail 60"
@@ -488,36 +375,13 @@ else
   fi
 fi
 
-# ── фиксация TLS ─────────────────────────────────────────────────────────────
-if [ "$TLS" -eq 1 ] && [ "$DO_UP" -eq 0 ]; then
-  c_warn "TLS_ENABLED НЕ записан: --skip-up не поднимает стек и не проверяет TLS"
-  TLS_ACTIVE="$current_tls"
-elif [ "$TLS" -eq 1 ] && { [ "$DRY" -eq 1 ] || [ "$smoke_ok" -eq 1 ]; }; then
-  if [ "$current_tls" != "1" ]; then
-    run_sh "sed -i 's|^TLS_ENABLED=.*|TLS_ENABLED=1|' '$ENV_FILE'"
-    if [ "$DRY" -eq 0 ]; then c_ok "TLS_ENABLED=1 записан в infra/.env"; fi
-  fi
-  TLS_ACTIVE=1
-elif [ "$TLS" -eq 1 ]; then
-  c_warn "smoke в TLS-режиме не прошёл — TLS_ENABLED не включён"
-  TLS_ACTIVE="$current_tls"
-else
-  TLS_ACTIVE=0
-fi
-
 # ── итог ─────────────────────────────────────────────────────────────────────
 step "Готово"
 
-SCHEME="http"
-[ "$TLS_ACTIVE" = "1" ] && SCHEME="https"
-PORT_SUFFIX=""
-[ "$SCHEME" = "http" ] && [ "$WEB_PORT" != "80" ] && PORT_SUFFIX=":$WEB_PORT"
-
 cat <<EOF
 
-  Приложение:   ${SCHEME}://${APP_HOST}${PORT_SUFFIX}
-  Health:       ${SCHEME}://${APP_HOST}${PORT_SUFFIX}/api/health
-  TLS:          $( [ "$TLS_ACTIVE" = "1" ] && echo "включён (TLS_ENABLED=1)" || echo "выключен (TLS_ENABLED=0)" )
+  Приложение:   http://${APP_HOST}$( [ "$WEB_PORT" != "80" ] && echo ":$WEB_PORT" )
+  Health:       http://${APP_HOST}$( [ "$WEB_PORT" != "80" ] && echo ":$WEB_PORT" )/api/health
   Каталог:      ${TARGET}
   Ветка:        ${BRANCH}
 
@@ -534,7 +398,6 @@ cat <<EOF
   Полезное:
     cd ${TARGET} && docker compose ${compose_args} --env-file infra/.env ps
     cd ${TARGET} && docker compose ${compose_args} --env-file infra/.env logs -f api
-    бэкап БД:  docker compose ${compose_args} --env-file infra/.env --profile tools run --rm backup
 
 EOF
 
