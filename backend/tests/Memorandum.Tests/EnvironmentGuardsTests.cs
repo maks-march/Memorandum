@@ -15,7 +15,6 @@ public sealed class EnvironmentGuardsTests
             ["Database:Provider"] = "Postgres",
             ["ConnectionStrings:Postgres"] = "Host=localhost;Database=memorandum;Username=u;Password=p",
             ["AllowedHosts"] = "memorandum.example.ru",
-            ["Mock:Enabled"] = "false",
             ["Proxy:TrustedNetworks:0"] = "172.28.0.0/16",
         };
 
@@ -32,15 +31,6 @@ public sealed class EnvironmentGuardsTests
 
         var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
         Assert.Contains("ConnectionStrings:Postgres", exception.ToString(), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Production_with_mock_enabled_fails_fast()
-    {
-        using var factory = Production(new() { ["Mock:Enabled"] = "true" });
-
-        var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
-        Assert.Contains("Mock", exception.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -63,7 +53,6 @@ public sealed class EnvironmentGuardsTests
                 ["Database:Provider"] = "Postgres",
                 ["ConnectionStrings:Postgres"] = "Host=localhost;Database=memorandum;Username=u;Password=p",
                 ["AllowedHosts"] = "memorandum.example.ru",
-                ["Mock:Enabled"] = "false",
                 },
         };
 
@@ -72,7 +61,7 @@ public sealed class EnvironmentGuardsTests
     }
 
     [Fact]
-    public async Task Development_with_mock_enabled_returns_mock_payload()
+    public async Task Development_always_has_mock_endpoints()
     {
         using var factory = new MemorandumApiFactory();
         var client = factory.CreateClient();

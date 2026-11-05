@@ -10,14 +10,18 @@ internal sealed class MockAuthStore
     private readonly ConcurrentDictionary<string, MockSession> _sessions = new();
 
 
-    MockUser? FindByEmail(string email)
-        => _users.FirstOrDefault(user => string.Equals(user.Email, email, 
-            StringComparison.OrdinalIgnoreCase));
-            
-    bool CheckPassword(MockUser u, string p)
-        => u.Password == p;  
+    public MockUser? FindByEmail(string email)
+    {
+        lock (_gate)
+        {
+            return UnlockedFindByEmail(email);
+        }
+    }
 
-    (string sid, string xsrf) CreateSession(MockUser user)
+    public bool CheckPassword(MockUser u, string p)
+        => u.Password == p;
+
+    public (string sid, string xsrf) CreateSession(MockUser user)
     {
         var sessionId = Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
         var xsrf = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
@@ -30,26 +34,28 @@ internal sealed class MockAuthStore
         return (sessionId, xsrf);
     }
 
-    MockUser? GetUserBySession(string sid)
+    public MockUser? GetUserBySession(string sid)
     {
         _sessions.TryGetValue(sid, out var session);
+        if (session is null || session.ExpiresAt <= DateTimeOffset.UtcNow)
+            return null;
         var userId = session?.UserId ?? Guid.Empty;
         return _users.FirstOrDefault(u => u.Id == userId);
     }
 
-    bool ValidateXsrf(string sid, string? token)
+    public bool ValidateXsrf(string sid, string? token)
     {
         _sessions.TryGetValue(sid, out var session);
         return session is not null && session.XsrfToken == token;
     }
 
-    void RemoveSession(string sid) => _sessions.TryRemove(sid, out _);
+    public void RemoveSession(string sid) => _sessions.TryRemove(sid, out _);
 
-    MockUser AddUser(string email, string password, string fullName, Guid? orgId)
+    public MockUser AddUser(string email, string password, string fullName, Guid? orgId)
     {
         lock (_gate)
         {
-            if (FindByEmail(email) is not null)
+            if (UnlockedFindByEmail(email) is not null)
                 throw new InvalidOperationException($"email_taken: {email}");
 
             var user = new MockUser(
@@ -60,14 +66,18 @@ internal sealed class MockAuthStore
             return user;
         }
     }
-    
-    void Reset()
+
+    public void Reset()
     {
+        _sessions.Clear();
         lock (_gate)
         {
             _users.Clear();
             _users.AddRange(MockAuthFixtures.Users());
-            _sessions.Clear();
         }
     }
+
+    private MockUser? UnlockedFindByEmail(string email) =>
+        _users.FirstOrDefault(user => string.Equals(user.Email, email,
+            StringComparison.OrdinalIgnoreCase));
 }

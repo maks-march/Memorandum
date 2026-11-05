@@ -55,7 +55,7 @@ internal static class MockAuthFixtures
 
 public sealed record MockOrg(Guid Id, string Name);
 
-internal sealed record MockUser(
+public sealed record MockUser(
     Guid Id,
     string Email,
     string Password,

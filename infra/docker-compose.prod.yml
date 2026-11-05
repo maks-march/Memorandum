@@ -46,7 +46,6 @@ services:
       ASPNETCORE_URLS: http://0.0.0.0:8080
       ConnectionStrings__Postgres: "Host=db;Port=5432;Database=${POSTGRES_DB:-memorandum};Username=${POSTGRES_USER:-memorandum};Password=${POSTGRES_PASSWORD}"
       Database__Provider: Postgres
-      Mock__Enabled: "false"
       # host-фильтрация: домен + localhost (для healthcheck изнутри контейнера)
       AllowedHosts: "${APP_HOST:-localhost};localhost;127.0.0.1"
       # доверяем X-Forwarded-* только от nginx из этой docker-сети (см. networks ниже)

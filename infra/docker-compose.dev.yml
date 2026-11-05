@@ -17,7 +17,6 @@ services:
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
       DOTNET_USE_POLLING_FILE_WATCHER: "1"      # надёжнее на Docker Desktop (Win/Mac)
       Database__Provider: Sqlite
-      Mock__Enabled: "true"
     volumes:
       - ../backend:/src
       - nuget:/root/.nuget/packages          # быстрый restore между перезапусками

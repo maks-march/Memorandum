@@ -18,7 +18,6 @@ public class MemorandumApiFactory : WebApplicationFactory<Program>
     /// <summary>Переопределения конфигурации (аналог appsettings/переменных окружения).</summary>
     public Dictionary<string, string?> Settings { get; init; } = new()
     {
-        ["Mock:Enabled"] = "true",
         ["Database:Provider"] = "Sqlite",
     };
 

@@ -3,8 +3,8 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
-using Memorandum.Api;
 using Scalar.AspNetCore;
+using Mocks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,7 +32,14 @@ if (env.IsProduction())
             "Задайте переменную окружения AllowedHosts.");
 }
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(opt =>
+{
+    opt.Conventions.Add(new RemoveDevelopmentOnlyControllersConvention(env));
+});
+
+if (env.IsDevelopment())
+    builder.Services.AddMockServices();
+
 builder.Services.AddProblemDetails();
 
 builder.Services
