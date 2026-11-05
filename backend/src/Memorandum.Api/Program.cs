@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Scalar.AspNetCore;
-using Mocks;
+using Memorandum.Api.Mocks;
 
 var builder = WebApplication.CreateBuilder(args);
 

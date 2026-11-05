@@ -1,4 +1,4 @@
-namespace Mocks;
+namespace Memorandum.Api.Mocks;
 
 internal static class MockServiceCollectionExtensions
 {

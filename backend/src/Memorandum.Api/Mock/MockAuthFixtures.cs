@@ -1,4 +1,6 @@
-namespace Mocks;
+using Memorandum.Api.Contracts;
+
+namespace Memorandum.Api.Mocks;
 
 /// <summary>
 /// Данные мока авторизации.
@@ -53,7 +55,7 @@ internal static class MockAuthFixtures
     }
 }
 
-public sealed record MockOrg(Guid Id, string Name);
+public sealed record MockOrg(Guid Id, string Name) : OrgRef(Id, Name);
 
 public sealed record MockUser(
     Guid Id,

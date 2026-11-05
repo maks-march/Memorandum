@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 
-namespace Mocks;
+namespace Memorandum.Api.Mocks;
 
 internal class RemoveDevelopmentOnlyControllersConvention : IApplicationModelConvention
 {

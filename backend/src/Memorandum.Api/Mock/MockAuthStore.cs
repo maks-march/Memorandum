@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 
-namespace Mocks;
+namespace Memorandum.Api.Mocks;
 
 internal sealed class MockAuthStore
 {
