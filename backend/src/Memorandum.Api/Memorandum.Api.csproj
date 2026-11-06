@@ -18,8 +18,9 @@
     <PackageReference Include="Asp.Versioning.OpenApi" Version="10.2.3" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.18.7" />
-    <!-- транзитивная 2.0.0 содержала уязвимость GHSA-v5pm-xwqc-g5wc -->
     <PackageReference Include="Microsoft.OpenApi" Version="2.13.0" />
+    
+    <PackageReference Include="LanguageExt.Core" Version="4.4.9" />
   </ItemGroup>
 
 </Project>

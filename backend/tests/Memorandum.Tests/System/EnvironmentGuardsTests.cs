@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Memorandum.Tests;
 
@@ -66,8 +67,18 @@ public sealed class EnvironmentGuardsTests
         using var factory = new MemorandumApiFactory();
         var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/mock/api/health");
+        var response = await client.GetAsync("/mock/api/me");
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Production_has_no_mock_endpoints()
+    {
+        using var factory = Production(new());   // существующий хелпер
+        var client = factory.CreateClient();
+
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/health")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/mock/api/me")).StatusCode);
     }
 }

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -28,9 +29,19 @@ public class MemorandumApiFactory : WebApplicationFactory<Program>
         foreach (var (key, value) in Settings)
             builder.UseSetting(key, value);
 
-        builder.ConfigureTestServices(services =>
+                builder.ConfigureTestServices(services =>
         {
             services.AddControllers().AddApplicationPart(typeof(TestOnlyBoomController).Assembly);
+
+            // HostFilteringMiddleware стоит до роутинга и отбивает Host, которого нет в
+            // AllowedHosts, пустым 400. Тестовый клиент WebApplicationFactory всегда ходит
+            // на http://localhost, поэтому разрешаем его здесь — на уровне пайплайна,
+            // не трогая AllowedHosts из прод-конфига (гвард «* запрещён» остаётся честным).
+            services.Configure<HostFilteringOptions>(o =>
+            {
+                if (!o.AllowedHosts.Contains("localhost"))
+                    o.AllowedHosts.Add("localhost");
+            });
         });
     }
 }

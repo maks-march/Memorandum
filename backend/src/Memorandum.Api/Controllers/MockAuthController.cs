@@ -2,6 +2,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Memorandum.Api.Mocks;
 using Memorandum.Api.Contracts;
+using LanguageExt.Pipes;
 
 namespace Memorandum.Api.Controllers;
 
@@ -13,79 +14,61 @@ namespace Memorandum.Api.Controllers;
 [Route("mock/api")]
 [Tags("Auth (mock)")]
 [DevelopmentOnly]
-internal sealed class MockAuthController(MockAuthStore store) : ControllerBase
+public sealed class MockAuthController(MockAuthStore store) : ControllerBase
 {
-    internal const string AuthCookie = "memorandum.auth";
-    internal const string XsrfCookie = "XSRF-TOKEN";
-    internal const string XsrfHeader = "X-XSRF-TOKEN";
-
-    [HttpPost("auth/login")]
-    public IActionResult Login(LoginRequest request)
+    private static UserDto ToDto(MockUser user) => new(
+        user.Id,
+        user.Email,
+        user.FullName,
+        user.Position,
+        user.Role,
+        user.OrgId
+    );
+    
+    [HttpPost("login")]
+    public ActionResult<UserDto> Login([FromBody] LoginRequest request)
     {
-        var user = store.FindByEmail(request.Email);
-        if (user is null || !store.CheckPassword(user, request.Password))
-            return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Неверный email или пароль");
+        var result =
+            from user in store.Authenticate(request.Email, request.Password)
+            from session in store.CreateSession(user)
+            select (user, session);
 
-        var (sid, xsrf) = store.CreateSession(user);
-        SetAuthCookies(sid, xsrf);
+        result.IfSucc(pair =>
+        {
+            AppendSessionCookie(pair.session);
+            Response.Headers["X-XSRF-TOKEN"] = pair.session.XsrfToken;
+        });
 
-        return Ok(new LoginResponse(ToMe(user), xsrf));
-    }
-
-    [HttpPost("auth/logout")]
-    public IActionResult Logout()
-    {
-        var sid = Request.Cookies[AuthCookie];
-        if (sid is not null)
-            store.RemoveSession(sid);
-
-        Response.Cookies.Delete(AuthCookie);
-        Response.Cookies.Delete(XsrfCookie);
-
-        return NoContent();
+        return result
+            .ToActionResult(pair => ToDto(pair.user));
     }
 
     [HttpGet("me")]
-    public ActionResult<MeResponse> Me()
-    {
-        var user = CurrentUser();
-        return user is null
-            ? Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Требуется вход")
-            : Ok(ToMe(user));
-    }
+    public ActionResult<UserDto> Me() =>
+        store.RequireUser(Request.Cookies["sid"]).ToActionResult(mock => ToDto(mock));
 
-    /// <summary>Пользователь из cookie или null, если сессии нет либо она истекла.</summary>
-    private MockUser? CurrentUser()
-    {
-        var sid = Request.Cookies[AuthCookie];
-        return sid is null ? null : store.GetUserBySession(sid);
-    }
-
-    private void SetAuthCookies(string sid, string xsrf)
-    {
-        Response.Cookies.Append(AuthCookie, sid, new CookieOptions
+    private void AppendSessionCookie(MockSession session) =>
+        Response.Cookies.Append("sid", session.sessionId, 
+        new CookieOptions
         {
             HttpOnly = true,
+            Secure = true,
             SameSite = SameSiteMode.Lax,
             Path = "/",
-            Secure = Request.IsHttps,   // в dev по http иначе браузер выбросит cookie
-            Expires = DateTimeOffset.UtcNow.AddHours(8)
+            MaxAge = TimeSpan.FromHours(8),
         });
 
-        // читаемая cookie: фронт берёт из неё токен и дублирует его заголовком
-        Response.Cookies.Append(XsrfCookie, xsrf, new CookieOptions
-        {
-            SameSite = SameSiteMode.Lax,
-            Path = "/",
-            Secure = Request.IsHttps
-        });
-    }
-
-    private static MeResponse ToMe(MockUser user)
+    [HttpPost("logout")]
+    public IActionResult Logout()
     {
-        var mockOrg = user.OrgId is { } id
-            ? MockAuthFixtures.Orgs().Where(o => o.Id == id).FirstOrDefault()
-            : null;
-        return new MeResponse(user.Id, user.Email, user.FullName, user.Position, user.Role, mockOrg);
+        var sessionId = Request.Cookies["sid"] ?? string.Empty;
+        var xsrf = store.RequireXsrf(sessionId, Request.Headers["X-XSRF-TOKEN"]);
+
+        if (xsrf.IsFail)
+            return xsrf.ToNoContentResult();
+
+        store.RemoveSession(sessionId);
+        Response.Cookies.Delete("sid");
+        return NoContent();
     }
 }

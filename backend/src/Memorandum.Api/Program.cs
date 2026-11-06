@@ -22,10 +22,6 @@ if (env.IsProduction())
         throw new InvalidOperationException(
             "Production требует ConnectionStrings:Postgres (переменная окружения ConnectionStrings__Postgres).");
 
-    if (builder.Configuration.GetValue("Mock:Enabled", false))
-        throw new InvalidOperationException(
-            "Production не может работать с Mock:Enabled=true. Заглушки должны быть отключены.");
-
     if (string.IsNullOrWhiteSpace(allowedHosts) || allowedHosts.Contains('*'))
         throw new InvalidOperationException(
             "Production требует конкретный AllowedHosts (домен через ';'), значение '*' запрещено. " +

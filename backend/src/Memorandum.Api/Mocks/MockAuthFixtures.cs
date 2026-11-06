@@ -66,4 +66,4 @@ public sealed record MockUser(
     string Role,
     Guid? OrgId);
 
-public sealed record MockSession(Guid UserId, DateTimeOffset ExpiresAt, string XsrfToken);
+public sealed record MockSession(string sessionId, Guid UserId, DateTimeOffset ExpiresAt, string XsrfToken);
