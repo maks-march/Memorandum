@@ -118,6 +118,6 @@ dotnet test backend/Memorandum.slnx        # интеграционные: ве�
 | Проверка | Dev | Prod |
 |---|---|---|
 | `GET /api/health` → `environment` | `Development`, `database: Sqlite` | `Production`, `database: Postgres` |
-| `GET /mock/api/health` | 200 (mock-данные) | 404 |
+| `GET /mock/api/me` | 401 (мок жив, сессии нет) | 404 (маршрута нет) |
 | `/scalar/v1` | 200 | 404 (включается `OpenApi__Enabled=true`) |
 | старт без строки подключения к Postgres | ок | падение с понятной ошибкой |

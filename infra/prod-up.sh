@@ -345,7 +345,7 @@ else
       if [ "$code" = "$2" ]; then c_ok "$3 ($code)"; else c_err "$3: ожидали $2, получили $code"; fails=$((fails+1)); fi
     }
     check "$BASE/" 200 "статика /"
-    check "$BASE/mock/api/health" 404 "mock закрыт"
+    check "$BASE/mock/api/auth/login" 404 "mock закрыт"
     check "$BASE/api/health" 200 "health"
 
     health="$("${CURL[@]}" -m 5 "$BASE/api/health" 2>/dev/null || true)"

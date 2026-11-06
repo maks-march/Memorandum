@@ -63,7 +63,7 @@ export default function App() {
         <p className="hint">
           Запросы идут по относительным путям. Версия API — сегмент URL:{' '}
           <code>/api/v1/system/info</code>; health и mock от версии не зависят
-          (<code>/api/health</code>, <code>/mock/api/health</code>).
+          (<code>/api/health</code>); мок авторизации — <code>/mock/api/me</code>.
           {isDev ? (
             <>
               {' '}В dev их проксирует Vite на <code>{proxyTarget}</code>.
@@ -77,11 +77,8 @@ export default function App() {
           <button onClick={() => void call('/api/health')} disabled={loading}>
             GET /api/health
           </button>
-          <button onClick={() => void call('/mock/api/health')} disabled={loading} className="secondary">
-            GET /mock/api/health
-          </button>
-          <button onClick={() => void call('/mock/api/health?status=500')} disabled={loading} className="secondary">
-            mock → 500
+          <button onClick={() => void call('/mock/api/me')} disabled={loading} className="secondary">
+            GET /mock/api/me (мок)
           </button>
           <button onClick={() => void call('/api/v1/system/info')} disabled={loading} className="secondary">
             GET /api/v1/system/info

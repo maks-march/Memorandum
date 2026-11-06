@@ -219,7 +219,7 @@ jobs:
           echo "$health"
           echo "$health" | grep -q '"environment":"Production"'
           echo "$health" | grep -q '"version":"[^"]'
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/mock/api/health)" = "404"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/mock/api/auth/login)" = "404"
 
       - name: Security-заголовки на HTML и ассетах
         run: |

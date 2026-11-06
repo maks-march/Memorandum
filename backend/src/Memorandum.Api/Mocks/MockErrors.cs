@@ -1,3 +1,6 @@
+
+
+
 public static class MockErrors
 {
     public static readonly Error InvalidCredentials = Error.New(401, "Неверный email или пароль");
