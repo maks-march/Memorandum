@@ -2,7 +2,6 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Memorandum.Api.Mocks;
 using Memorandum.Api.Contracts;
-using LanguageExt.Pipes;
 
 namespace Memorandum.Api.Controllers;
 
@@ -51,7 +50,7 @@ public sealed class MockAuthController(MockAuthStore store) : ControllerBase
         Response.Cookies.Append("sid", session.sessionId, 
         new CookieOptions
         {
-            HttpOnly = true,
+            HttpOnly = false,
             Secure = true,
             SameSite = SameSiteMode.Lax,
             Path = "/",

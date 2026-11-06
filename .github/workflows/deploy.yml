@@ -161,7 +161,7 @@ jobs:
             health="$($CURL "$BASE/api/health")" || return 1
             echo "$health"
             printf '%s' "$health" | grep -q '"environment":"Production"' || return 1
-            test "$($CURL -o /dev/null -w '%{http_code}' "$BASE/mock/api/health")" = "404" || return 1
+            test "$($CURL -o /dev/null -w '%{http_code}' "$BASE/mock/api/auth/login")" = "404" || return 1
             if [ -n "$expected" ]; then
               printf '%s' "$health" | grep -q "$expected" || return 1
             fi
