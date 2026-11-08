@@ -9,10 +9,6 @@ public static class ApiErrors
     public static readonly Error OrganizationNameRequired = Error.New(400, "Название организации обязательно");
     public static readonly Error OrganizationInactive = Error.New(409, "Организация деактивирована");
     public static readonly Error LastOrgAdmin = Error.New(409, "Нельзя убрать последнего администратора организации");
-
-    public static Error MemberAlreadyExists(long userId) =>
-        Error.New(409, $"Пользователь {userId} уже состоит в организации");
-
-    public static Error MemberNotFound(long userId) =>
-        Error.New(404, $"Пользователь {userId} не состоит в организации");
+    public static readonly Error MemberAlreadyExists = Error.New(409, $"Пользователь уже состоит в организации");
+    public static readonly Error MemberNotFound = Error.New(404, $"Пользователь не состоит в организации");
 }

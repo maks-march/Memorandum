@@ -47,7 +47,7 @@ public sealed class OrganizationTests
         var org = ValidOrganization();
         AddMember(org, 1, OrganizationRole.Viewer);
 
-        Assert.Equal(ErrorOf(ApiErrors.MemberAlreadyExists(1)), ErrorOf(org.AddMember(1, OrganizationRole.Editor)));
+        Assert.Equal(ErrorOf(ApiErrors.MemberAlreadyExists), ErrorOf(org.AddMember(1, OrganizationRole.Editor)));
         Assert.Single(org.Memberships);
     }
 
@@ -100,7 +100,7 @@ public sealed class OrganizationTests
 
     [Fact]
     public void RemoveMember_unknown_user_fails_with_404() =>
-        Assert.Equal(ErrorOf(ApiErrors.MemberNotFound(42)), ErrorOf(ValidOrganization().RemoveMember(42)));
+        Assert.Equal(ErrorOf(ApiErrors.MemberNotFound), ErrorOf(ValidOrganization().RemoveMember(42)));
 
     [Fact]
     public void Deactivate_stops_adding_members()

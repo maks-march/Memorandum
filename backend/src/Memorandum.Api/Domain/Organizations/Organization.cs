@@ -34,7 +34,7 @@ public sealed class Organization
             return ApiErrors.OrganizationInactive;
 
         if (_memberships.Any(m => m.UserId == userId))
-            return ApiErrors.MemberAlreadyExists(userId);
+            return ApiErrors.MemberAlreadyExists;
 
         var membership = new OrganizationMembership(userId, role);
         _memberships.Add(membership);
@@ -44,7 +44,7 @@ public sealed class Organization
     public Fin<Unit> RemoveMember(long userId)
     {
         if (FindMembership(userId) is not { } membership)
-            return ApiErrors.MemberNotFound(userId);
+            return ApiErrors.MemberNotFound;
 
         if (IsLastOrgAdmin(membership))
             return ApiErrors.LastOrgAdmin;
@@ -56,7 +56,7 @@ public sealed class Organization
     public Fin<Unit> ChangeRole(User user, OrganizationRole role)
     {
         if (FindMembership(user.Id) is not { } membership)
-            return ApiErrors.MemberNotFound(user.Id);
+            return ApiErrors.MemberNotFound;
 
         if (membership.Role == role)
             return Unit.Default;

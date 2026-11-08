@@ -11,6 +11,7 @@ public sealed class OrganizationMembership
     {
         UserId = userId;
         Role = role;
+        IsActive = true;
     }
 
     public long Id { get; private set; }
@@ -20,6 +21,9 @@ public sealed class OrganizationMembership
     public long UserId { get; private set; }
 
     public OrganizationRole Role { get; private set; }
+
+    /// <summary>Активное членство: уникально в пределах пользователя.</summary>
+    public bool IsActive { get; private set; }
 
     internal void ChangeRole(OrganizationRole role) => Role = role;
 }
