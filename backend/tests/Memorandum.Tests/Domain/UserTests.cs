@@ -1,14 +1,18 @@
 using Memorandum.Domain.Common;
+using Memorandum.Domain.Organizations;
 using Memorandum.Domain.Users;
 
 namespace Memorandum.Tests.Domain;
 
 public sealed class UserTests
 {
+    private static User NewUser(string email = "a@b.ru", string fullName = "Иван") =>
+        User.Create(email, fullName, TestHelpers.Now);
+
     [Fact]
     public void Create_fills_fields_and_normalizes_email()
     {
-        var user = User.Create("  Ivan.Petrov@Example.RU ", "  Иван Петров  ");
+        var user = User.Create("  Ivan.Petrov@Example.RU ", "  Иван Петров  ", TestHelpers.Now);
 
         Assert.Equal("Ivan.Petrov@Example.RU", user.Email);
         Assert.Equal("ivan.petrov@example.ru", user.NormalizedEmail);
@@ -21,25 +25,24 @@ public sealed class UserTests
     [Fact]
     public void Create_does_not_assign_id()
     {
-        Assert.Equal(0, User.Create("a@b.ru", "Иван").Id);
+        Assert.Equal(0, NewUser().Id);
     }
 
     [Fact]
-    public void Create_marks_audit_fields()
+    public void Create_uses_passed_time()
     {
-        var before = DateTime.UtcNow.AddSeconds(-1);
-        var user = User.Create("a@b.ru", "Иван", "admin");
-        var after = DateTime.UtcNow.AddSeconds(1);
+        var user = User.Create("a@b.ru", "Иван", TestHelpers.Now, "admin");
 
-        Assert.InRange(user.CreatedAt, before, after);
-        Assert.Equal(user.CreatedAt, user.UpdatedAt);
+        Assert.Equal(TestHelpers.Now, user.CreatedAt);
+        Assert.Equal(TestHelpers.Now, user.UpdatedAt);
+        Assert.Equal(DateTimeKind.Utc, user.CreatedAt.Kind);
         Assert.Equal("admin", user.UpdatedBy);
     }
 
     [Fact]
     public void Create_trims_author()
     {
-        Assert.Equal("admin", User.Create("a@b.ru", "Иван", "  admin  ").UpdatedBy);
+        Assert.Equal("admin", User.Create("a@b.ru", "Иван", TestHelpers.Now, "  admin  ").UpdatedBy);
     }
 
     [Theory]
@@ -49,7 +52,8 @@ public sealed class UserTests
     [InlineData("a@b.ru", "  ", ErrorCodes.Required)]
     public void Create_rejects_blank_required_fields(string? email, string? fullName, string expectedCode)
     {
-        var exception = Assert.Throws<ValidationException>(() => User.Create(email, fullName));
+        var exception = Assert.Throws<ValidationException>(
+            () => User.Create(email, fullName, TestHelpers.Now));
 
         Assert.Equal(expectedCode, exception.Code);
     }
@@ -59,87 +63,116 @@ public sealed class UserTests
     {
         var email = new string('a', User.EmailMaxLength) + "@b.ru";
 
-        var exception = Assert.Throws<ValidationException>(() => User.Create(email, "Иван"));
+        var exception = Assert.Throws<ValidationException>(() => User.Create(email, "Иван", TestHelpers.Now));
 
         Assert.Equal(ErrorCodes.TooLong, exception.Code);
     }
 
     [Fact]
-    public void Rename_changes_name_and_keeps_stamp()
+    public void Rename_changes_name_and_updates_time()
     {
-        var user = User.Create("a@b.ru", "Иван");
+        var user = NewUser();
         var stamp = user.SecurityStamp;
 
-        user.Rename("Пётр", "admin");
+        user.Rename("Пётр", TestHelpers.Later, "admin");
 
         Assert.Equal("Пётр", user.FullName);
-        Assert.Equal(stamp, user.SecurityStamp);
+        Assert.Equal(TestHelpers.Now, user.CreatedAt);
+        Assert.Equal(TestHelpers.Later, user.UpdatedAt);
         Assert.Equal("admin", user.UpdatedBy);
+        Assert.Equal(stamp, user.SecurityStamp);
     }
 
     [Fact]
     public void Rename_rejects_blank_name()
     {
-        var user = User.Create("a@b.ru", "Иван");
+        Assert.Throws<ValidationException>(() => NewUser().Rename(null, TestHelpers.Later));
+    }
 
-        Assert.Throws<ValidationException>(() => user.Rename(null));
+    [Fact]
+    public void Rename_keeps_author_when_not_passed()
+    {
+        var user = User.Create("a@b.ru", "Иван", TestHelpers.Now, "admin");
+
+        user.Rename("Пётр", TestHelpers.Later);
+
+        Assert.Equal("admin", user.UpdatedBy);
     }
 
     [Fact]
     public void Deactivate_sets_inactive_and_rotates_stamp()
     {
-        var user = User.Create("a@b.ru", "Иван");
+        var user = NewUser();
         var stamp = user.SecurityStamp;
 
-        user.Deactivate();
+        user.Deactivate(TestHelpers.Later);
 
         Assert.False(user.IsActive);
         Assert.NotEqual(stamp, user.SecurityStamp);
+        Assert.Equal(TestHelpers.Later, user.UpdatedAt);
     }
 
     [Fact]
     public void Activate_restores_access_without_touching_stamp()
     {
-        var user = User.Create("a@b.ru", "Иван");
-        user.Deactivate();
+        var user = NewUser();
+        user.Deactivate(TestHelpers.Now);
         var stamp = user.SecurityStamp;
 
-        user.Activate();
+        user.Activate(TestHelpers.Later);
 
         Assert.True(user.IsActive);
         Assert.Equal(stamp, user.SecurityStamp);
+        Assert.Equal(TestHelpers.Later, user.UpdatedAt);
     }
 
     [Fact]
     public void ChangeSecurityStamp_rotates_stamp()
     {
-        var user = User.Create("a@b.ru", "Иван");
+        var user = NewUser();
         var stamp = user.SecurityStamp;
 
-        user.ChangeSecurityStamp();
+        user.ChangeSecurityStamp(TestHelpers.Later);
 
         Assert.NotEqual(stamp, user.SecurityStamp);
+        Assert.Equal(TestHelpers.Later, user.UpdatedAt);
     }
 
     [Fact]
     public void SetActiveOrganization_stores_id()
     {
-        var user = User.Create("a@b.ru", "Иван");
+        var user = NewUser();
 
-        user.SetActiveOrganization(7);
+        user.SetActiveOrganization(7, TestHelpers.Later);
 
         Assert.Equal(7, user.ActiveOrganizationId);
+        Assert.Equal(TestHelpers.Later, user.UpdatedAt);
     }
 
     [Fact]
     public void SetActiveOrganization_allows_clearing()
     {
-        var user = User.Create("a@b.ru", "Иван");
-        user.SetActiveOrganization(7);
+        var user = NewUser();
+        user.SetActiveOrganization(7, TestHelpers.Now);
 
-        user.SetActiveOrganization(null);
+        user.SetActiveOrganization((long?)null, TestHelpers.Later);
 
         Assert.Null(user.ActiveOrganizationId);
+        Assert.Equal(TestHelpers.Later, user.UpdatedAt);
+    }
+
+    [Fact]
+    public void SetActiveOrganization_by_entity_sets_navigation()
+    {
+        var user = NewUser();
+        var organization = Organization.Create("ООО", TestHelpers.Now);
+
+        user.SetActiveOrganization(organization, TestHelpers.Later, "admin");
+
+        Assert.Same(organization, user.ActiveOrganization);
+        Assert.Null(user.ActiveOrganizationId);
+        Assert.Equal(TestHelpers.Later, user.UpdatedAt);
+        Assert.Equal("admin", user.UpdatedBy);
     }
 
     [Theory]
@@ -147,8 +180,7 @@ public sealed class UserTests
     [InlineData(-5)]
     public void SetActiveOrganization_rejects_non_positive_id(long organizationId)
     {
-        var user = User.Create("a@b.ru", "Иван");
-
-        Assert.Throws<ValidationException>(() => user.SetActiveOrganization(organizationId));
+        Assert.Throws<ValidationException>(
+            () => NewUser().SetActiveOrganization(organizationId, TestHelpers.Later));
     }
 }

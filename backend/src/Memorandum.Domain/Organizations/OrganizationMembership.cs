@@ -13,13 +13,13 @@ public sealed class OrganizationMembership : AuditableEntity
     {
     }
 
-    internal OrganizationMembership(User user, OrganizationRole role, string? createdBy)
+    internal OrganizationMembership(User user, OrganizationRole role, DateTime utcNow, string? createdBy)
     {
         User = user ?? throw new ArgumentNullException(nameof(user));
         UserId = user.Id;
         Role = role;
         IsActive = true;
-        MarkCreated(createdBy);
+        MarkCreated(utcNow, createdBy);
     }
 
     public long UserId { get; private set; }
@@ -34,24 +34,24 @@ public sealed class OrganizationMembership : AuditableEntity
 
     public bool IsActive { get; private set; }
 
-    internal void ChangeRole(OrganizationRole role, string? updatedBy)
+    internal void ChangeRole(OrganizationRole role, DateTime utcNow, string? updatedBy)
     {
         Role = role;
-        Touch(updatedBy);
+        Touch(utcNow, updatedBy);
     }
 
     /// <summary>Исключение из организации: участие остаётся в истории неактивным.</summary>
-    internal void Deactivate(string? updatedBy)
+    internal void Deactivate(DateTime utcNow, string? updatedBy)
     {
         IsActive = false;
-        Touch(updatedBy);
+        Touch(utcNow, updatedBy);
     }
 
     /// <summary>Повторное добавление ранее исключённого пользователя.</summary>
-    internal void Reactivate(OrganizationRole role, string? updatedBy)
+    internal void Reactivate(OrganizationRole role, DateTime utcNow, string? updatedBy)
     {
         Role = role;
         IsActive = true;
-        Touch(updatedBy);
+        Touch(utcNow, updatedBy);
     }
 }

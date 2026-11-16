@@ -1,4 +1,5 @@
 using Memorandum.Domain.Common;
+using Memorandum.Domain.Organizations;
 
 namespace Memorandum.Domain.Users;
 
@@ -24,10 +25,16 @@ public sealed class User : AuditableEntity
     /// <summary>Меняется при блокировке и смене пароля: отзывает уже выданные cookie.</summary>
     public string SecurityStamp { get; private set; } = null!;
 
-    /// <summary>Организация, выбранная пользователем как текущая.</summary>
+    /// <summary>Организация, выбранная пользователем как текущую.</summary>
     public long? ActiveOrganizationId { get; private set; }
 
-    public static User Create(string? email, string? fullName, string? createdBy = null)
+    /// <summary>
+    /// Навигация для сохранения в один <c>SaveChangesAsync</c>: при регистрации организация
+    /// ещё не имеет Id, и FK проставит EF после вставки.
+    /// </summary>
+    public Organization? ActiveOrganization { get; private set; }
+
+    public static User Create(string? email, string? fullName, DateTime utcNow, string? createdBy = null)
     {
         var user = new User
         {
@@ -38,44 +45,56 @@ public sealed class User : AuditableEntity
         };
 
         user.NormalizedEmail = EmailNormalizer.Normalize(user.Email);
-        user.MarkCreated(createdBy);
+        user.MarkCreated(utcNow, createdBy);
         return user;
     }
 
-    public void Rename(string? fullName, string? updatedBy = null)
+    public void Rename(string? fullName, DateTime utcNow, string? updatedBy = null)
     {
         FullName = Guard.Required(fullName, "ФИО", FullNameMaxLength);
-        Touch(updatedBy);
+        Touch(utcNow, updatedBy);
     }
 
     /// <summary>Блокировка: доступ по уже выданным cookie отзывается через смену стампа.</summary>
-    public void Deactivate(string? updatedBy = null)
+    public void Deactivate(DateTime utcNow, string? updatedBy = null)
     {
         IsActive = false;
         RotateStamp();
-        Touch(updatedBy);
+        Touch(utcNow, updatedBy);
     }
 
-    public void Activate(string? updatedBy = null)
+    public void Activate(DateTime utcNow, string? updatedBy = null)
     {
         IsActive = true;
-        Touch(updatedBy);
+        Touch(utcNow, updatedBy);
     }
 
     /// <summary>Смена пароля и ролей: все выданные cookie становятся недействительными.</summary>
-    public void ChangeSecurityStamp(string? updatedBy = null)
+    public void ChangeSecurityStamp(DateTime utcNow, string? updatedBy = null)
     {
         RotateStamp();
-        Touch(updatedBy);
+        Touch(utcNow, updatedBy);
     }
 
-    public void SetActiveOrganization(long? organizationId, string? updatedBy = null)
+    public void SetActiveOrganization(long? organizationId, DateTime utcNow, string? updatedBy = null)
     {
         if (organizationId is not null)
             Guard.PositiveId(organizationId.Value, "Организация");
 
         ActiveOrganizationId = organizationId;
-        Touch(updatedBy);
+        Touch(utcNow, updatedBy);
+    }
+
+    /// <summary>
+    /// Выбор текущей организации по сущности — путь для сценария, где Id ещё не присвоен.
+    /// Внешний ключ заполняет EF после вставки организации.
+    /// </summary>
+    public void SetActiveOrganization(Organization organization, DateTime utcNow, string? updatedBy = null)
+    {
+        ArgumentNullException.ThrowIfNull(organization);
+
+        ActiveOrganization = organization;
+        Touch(utcNow, updatedBy);
     }
 
     private void RotateStamp() => SecurityStamp = NewStamp();

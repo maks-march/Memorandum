@@ -11,7 +11,8 @@ namespace Memorandum.Api.Controllers;
 [ApiVersionNeutral]
 [Route("mock/api/health")]
 [Tags("Health (mock)")]
-public sealed class MockHealthController(IConfiguration config, IHostEnvironment env) : ControllerBase
+public sealed class MockHealthController(IConfiguration config, IHostEnvironment env, TimeProvider timeProvider)
+    : ControllerBase
 {
     private bool Enabled => config.GetValue("Mock:Enabled", env.IsDevelopment());
 
@@ -56,7 +57,7 @@ public sealed class MockHealthController(IConfiguration config, IHostEnvironment
             database = "none (mock)",
             version = "mock-1.0.0",
             machine = "mock",
-            timeUtc = DateTime.UtcNow,
+            timeUtc = timeProvider.GetUtcNow().UtcDateTime,
             requestId = Guid.NewGuid()
         });
     }

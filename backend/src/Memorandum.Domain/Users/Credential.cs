@@ -20,7 +20,7 @@ public sealed class Credential : AuditableEntity
 
     public string PasswordHash { get; private set; } = null!;
 
-    public static Credential Create(User user, string? passwordHash, string? createdBy = null)
+    public static Credential Create(User user, string? passwordHash, DateTime utcNow, string? createdBy = null)
     {
         ArgumentNullException.ThrowIfNull(user);
 
@@ -31,14 +31,14 @@ public sealed class Credential : AuditableEntity
             PasswordHash = Guard.Required(passwordHash, "Хеш пароля", PasswordHashMaxLength),
         };
 
-        credential.MarkCreated(createdBy);
+        credential.MarkCreated(utcNow, createdBy);
         return credential;
     }
 
     /// <summary>Замена хеша. Стамп пользователя меняет вызывающий сценарий: домен не знает про сессии.</summary>
-    public void ChangeHash(string? passwordHash, string? updatedBy = null)
+    public void ChangeHash(string? passwordHash, DateTime utcNow, string? updatedBy = null)
     {
         PasswordHash = Guard.Required(passwordHash, "Хеш пароля", PasswordHashMaxLength);
-        Touch(updatedBy);
+        Touch(utcNow, updatedBy);
     }
 }

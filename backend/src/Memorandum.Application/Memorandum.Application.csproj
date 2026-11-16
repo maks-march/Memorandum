@@ -8,6 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Result/Error, валидаторы, сервисы, репозиторные интерфейсы; EF Core здесь не нужен. -->
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../Memorandum.Domain/Memorandum.Domain.csproj" />
   </ItemGroup>
 

@@ -35,6 +35,10 @@ if (env.IsProduction())
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 
+// Единый источник текущего времени: сценарии берут GetUtcNow() один раз на операцию,
+// тесты подменяют его детерминированной реализацией.
+builder.Services.AddSingleton(TimeProvider.System);
+
 builder.Services
     .AddApiVersioning(o =>
     {

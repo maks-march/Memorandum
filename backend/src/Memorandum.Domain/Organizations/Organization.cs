@@ -20,7 +20,7 @@ public sealed class Organization : AuditableEntity
 
     public IReadOnlyCollection<OrganizationMembership> Memberships => _memberships;
 
-    public static Organization Create(string? name, string? createdBy = null)
+    public static Organization Create(string? name, DateTime utcNow, string? createdBy = null)
     {
         var organization = new Organization
         {
@@ -28,21 +28,21 @@ public sealed class Organization : AuditableEntity
             IsActive = true,
         };
 
-        organization.MarkCreated(createdBy);
+        organization.MarkCreated(utcNow, createdBy);
         return organization;
     }
 
-    public void Rename(string? name, string? updatedBy = null)
+    public void Rename(string? name, DateTime utcNow, string? updatedBy = null)
     {
         Name = Guard.Required(name, "Название организации", NameMaxLength);
-        Touch(updatedBy);
+        Touch(utcNow, updatedBy);
     }
 
     /// <summary>
     /// Добавляет участника. 
     /// Ранее исключённый пользователь возвращается с новой ролью — второй записи на того же пользователя не появляется.
     /// </summary>
-    public OrganizationMembership AddMember(User user, OrganizationRole role, string? createdBy = null)
+    public OrganizationMembership AddMember(User user, OrganizationRole role, DateTime utcNow, string? createdBy = null)
     {
         ArgumentNullException.ThrowIfNull(user);
 
@@ -57,16 +57,16 @@ public sealed class Organization : AuditableEntity
 
         if (existing is not null)
         {
-            existing.Reactivate(role, createdBy);
+            existing.Reactivate(role, utcNow, createdBy);
             return existing;
         }
 
-        var membership = new OrganizationMembership(user, role, createdBy);
+        var membership = new OrganizationMembership(user, role, utcNow, createdBy);
         _memberships.Add(membership);
         return membership;
     }
 
-    public void ChangeRole(long userId, OrganizationRole role, string? updatedBy = null)
+    public void ChangeRole(long userId, OrganizationRole role, DateTime utcNow, string? updatedBy = null)
     {
         var membership = FindActive(userId);
 
@@ -75,22 +75,22 @@ public sealed class Organization : AuditableEntity
 
         EnsureNotLastAdmin(membership, "Нельзя понизить последнего администратора организации.");
 
-        membership.ChangeRole(role, updatedBy);
+        membership.ChangeRole(role, utcNow, updatedBy);
     }
 
     /// <summary>Исключает пользователя; последнего администратора исключить нельзя.</summary>
-    public void RemoveMember(long userId, string? updatedBy = null)
+    public void RemoveMember(long userId, DateTime utcNow, string? updatedBy = null)
     {
         var membership = FindActive(userId);
         EnsureNotLastAdmin(membership, "Нельзя исключить последнего администратора организации.");
-        membership.Deactivate(updatedBy);
+        membership.Deactivate(utcNow, updatedBy);
     }
 
     /// <summary>Организация больше не принимает участников.</summary>
-    public void Deactivate(string? updatedBy = null)
+    public void Deactivate(DateTime utcNow, string? updatedBy = null)
     {
         IsActive = false;
-        Touch(updatedBy);
+        Touch(utcNow, updatedBy);
     }
 
     private OrganizationMembership FindActive(long userId)

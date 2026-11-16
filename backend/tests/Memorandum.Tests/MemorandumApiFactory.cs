@@ -12,6 +12,9 @@ namespace Memorandum.Tests;
 /// </summary>
 public class MemorandumApiFactory : WebApplicationFactory<Program>
 {
+    /// <summary>Часы, которые получат сценарии и контроллеры. <c>null</c> — системные.</summary>
+    public TimeProvider? TimeProvider { get; init; }
+
     /// <summary>Окружение, в котором стартует приложение.</summary>
     public string Environment { get; init; } = "Development";
 
@@ -32,6 +35,10 @@ public class MemorandumApiFactory : WebApplicationFactory<Program>
         builder.ConfigureTestServices(services =>
         {
             services.AddControllers().AddApplicationPart(typeof(TestOnlyBoomController).Assembly);
+
+            // Последняя регистрация побеждает: часы из теста заменяют TimeProvider.System.
+            if (TimeProvider is not null)
+                services.AddSingleton(TimeProvider);
         });
     }
 }
