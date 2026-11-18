@@ -1,20 +1,19 @@
 using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 using Memorandum.Infrastructure.Persistence;
 
 namespace Memorandum.Tests.Infrastructure;
 
 /// <summary>
-/// База в памяти на время теста. Схема создаётся из модели, поэтому проверяются
-/// и индексы, и внешние ключи, в отличие от in-memory провайдера EF.
+/// База в памяти на время теста: схема создаётся из модели, поэтому проверяются и индексы,
+/// и внешние ключи — в отличие от in-memory провайдера EF.
 /// </summary>
 public sealed class SqliteDatabase : IAsyncDisposable
 {
-    private readonly SqliteConnection _connection;
+    private SqliteConnectionHolder? _holder;
 
-    private SqliteDatabase(SqliteConnection connection, AppDbContext context)
+    private SqliteDatabase(SqliteConnectionHolder holder, AppDbContext context)
     {
-        _connection = connection;
+        _holder = holder;
         Context = context;
     }
 
@@ -22,24 +21,17 @@ public sealed class SqliteDatabase : IAsyncDisposable
 
     public static async Task<SqliteDatabase> CreateAsync()
     {
-        var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-
-        var context = NewContext(connection);
-        await context.Database.EnsureCreatedAsync();
-
-        return new SqliteDatabase(connection, context);
+        var holder = await SqliteConnectionHolder.CreateAsync();
+        return new SqliteDatabase(holder, holder.NewContext());
     }
 
     /// <summary>Новый контекст на той же базе: проверка, что данные действительно сохранены.</summary>
-    public AppDbContext NewContext() => NewContext(_connection);
-
-    public static AppDbContext NewContext(SqliteConnection connection) =>
-        new(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
+    public AppDbContext NewContext() => _holder!.NewContext();
 
     public async ValueTask DisposeAsync()
     {
         await Context.DisposeAsync();
-        await _connection.DisposeAsync();
+        await _holder!.DisposeAsync();
+        _holder = null;
     }
 }

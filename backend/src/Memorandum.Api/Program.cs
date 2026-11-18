@@ -3,6 +3,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
+using Memorandum.Api.Auth;
 using Memorandum.Application;
 using Memorandum.Infrastructure;
 using Scalar.AspNetCore;
@@ -36,8 +37,22 @@ if (env.IsProduction())
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-builder.Services.AddControllers();
+// AddControllersWithViews нужен ради штатного фильтра [RequireAntiforgeryToken]:
+// с одним AddControllers() провал проверки не превращается в 400.
+builder.Services.AddControllersWithViews();
 builder.Services.AddProblemDetails();
+
+builder.Services.AddAntiforgery(options =>
+{
+    // Имена совпадают с тем, что axios читает и отправляет по умолчанию.
+    options.HeaderName = "X-XSRF-TOKEN";
+    options.Cookie.Name = "XSRF-TOKEN";
+    options.Cookie.HttpOnly = false;              // SPA должна прочитать токен
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+});
+
+builder.Services.AddApiCookieAuthentication(env);
 
 // Единый источник текущего времени: сценарии берут GetUtcNow() один раз на операцию,
 // тесты подменяют его детерминированной реализацией.
@@ -87,6 +102,12 @@ builder.Services.AddCors(o => o.AddPolicy("dev", p => p
 var app = builder.Build();
 
 app.UseForwardedHeaders();
+
+app.UseRouting();
+
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseAntiforgery();
 
 app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
 {
