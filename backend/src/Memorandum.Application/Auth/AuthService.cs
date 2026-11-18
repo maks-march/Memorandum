@@ -25,7 +25,7 @@ public sealed class AuthService(
     {
         var validation = await registerValidator.ValidateAsync(request, cancellationToken);
         if (!validation.IsValid)
-            return validation.ToError().ToResult<AuthUserDto>();
+            return Result<AuthUserDto>.Failure(validation.ToError());
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var author = currentUser.Name;
@@ -38,7 +38,7 @@ public sealed class AuthService(
             var normalizedEmail = EmailNormalizer.Normalize(request.Email);
 
             if (await users.ExistsByNormalizedEmailAsync(normalizedEmail, cancellationToken))
-                return EmailDuplicate().ToResult<AuthUserDto>();
+                return Result<AuthUserDto>.Failure(EmailDuplicate());
 
             user = User.Create(request.Email, request.FullName, now, author);
 
@@ -51,7 +51,7 @@ public sealed class AuthService(
         }
         catch (DomainException exception)
         {
-            return Error.FromDomainException(exception).ToResult<AuthUserDto>();
+            return Result<AuthUserDto>.Failure(Error.FromDomainException(exception));
         }
 
         var passwordHash = passwordHasher.Hash(request.Password!);

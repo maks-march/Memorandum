@@ -3,7 +3,8 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
-using Memorandum.Api;
+using Memorandum.Application;
+using Memorandum.Infrastructure;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,6 +32,9 @@ if (env.IsProduction())
             "Production требует конкретный AllowedHosts (домен через ';'), значение '*' запрещено. " +
             "Задайте переменную окружения AllowedHosts.");
 }
+
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
