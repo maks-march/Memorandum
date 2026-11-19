@@ -49,6 +49,7 @@ internal static class ResultMapping
     private static int StatusFor(string code) => code switch
     {
         ErrorCodes.NotFound => StatusCodes.Status404NotFound,
+        ErrorCodes.TooManyRequests => StatusCodes.Status429TooManyRequests,
         ErrorCodes.Forbidden => StatusCodes.Status403Forbidden,
         ErrorCodes.InvalidCredentials or ErrorCodes.UserInactive => StatusCodes.Status401Unauthorized,
         ErrorCodes.EmailDuplicate or ErrorCodes.ReferenceInUse
@@ -63,6 +64,7 @@ internal static class ResultMapping
         StatusCodes.Status403Forbidden => "Недостаточно прав",
         StatusCodes.Status404NotFound => "Не найдено",
         StatusCodes.Status409Conflict => "Конфликт состояния",
+        StatusCodes.Status429TooManyRequests => "Слишком много запросов",
         _ => "Некорректный запрос",
     };
 }

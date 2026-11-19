@@ -16,6 +16,7 @@ public static class ErrorCodes
     public const string UserInactive = "USER_INACTIVE";
     public const string EmailDuplicate = "EMAIL_DUPLICATE";
     public const string PasswordTooWeak = "PASSWORD_TOO_WEAK";
+    public const string TooManyRequests = "TOO_MANY_REQUESTS";
 
     // организации
     public const string OrganizationInactive = "ORGANIZATION_INACTIVE";

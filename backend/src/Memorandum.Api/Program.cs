@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Memorandum.Api.Auth;
+using Memorandum.Api.Infrastructure;
+using Memorandum.Api.Infrastructure.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Memorandum.Application;
 using Memorandum.Infrastructure;
 using Scalar.AspNetCore;
@@ -53,6 +56,7 @@ builder.Services.AddAntiforgery(options =>
 });
 
 builder.Services.AddApiCookieAuthentication(env);
+builder.Services.AddApiRateLimiting(builder.Configuration);
 
 // Единый источник текущего времени: сценарии берут GetUtcNow() один раз на операцию,
 // тесты подменяют его детерминированной реализацией.
@@ -93,8 +97,13 @@ builder.Services.Configure<ForwardedHeadersOptions>(o =>
         o.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(cidr));
 });
 
+// Origin'ы фронтенда из конфигурации (Cors:AllowedOrigins через ';' или массив).
+// Пусто и Development — любой origin: так удобнее локально, но только вне прода.
+var allowedOrigins = builder.Configuration["Cors:AllowedOrigins"]?
+    .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
+
 builder.Services.AddCors(o => o.AddPolicy("dev", p => p
-    .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+    .WithOrigins(allowedOrigins.Length > 0 ? allowedOrigins : ["http://localhost:5173", "http://127.0.0.1:5173"])
     .AllowAnyHeader()
     .AllowAnyMethod()
     .AllowCredentials()));
@@ -104,6 +113,9 @@ var app = builder.Build();
 app.UseForwardedHeaders();
 
 app.UseRouting();
+
+// Ограничение частоты — после роутинга (нужен выбранный эндпоинт) и до авторизации.
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -149,6 +161,8 @@ if (env.IsDevelopment())
 }
 
 app.MapControllers();
+
+await app.ApplyMigrationsAsync();
 
 app.Run();
 

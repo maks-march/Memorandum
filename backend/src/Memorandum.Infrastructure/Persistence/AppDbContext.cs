@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Memorandum.Domain.Organizations;
 using Memorandum.Domain.Users;
+using Memorandum.Infrastructure.Persistence.DataProtection;
 
 namespace Memorandum.Infrastructure.Persistence;
 
@@ -16,6 +17,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<OrganizationMembership> Memberships => Set<OrganizationMembership>();
 
     public DbSet<Credential> Credentials => Set<Credential>();
+
+    /// <summary>Ключи Data Protection: cookie и анти-CSRF токены переживают рестарт.</summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

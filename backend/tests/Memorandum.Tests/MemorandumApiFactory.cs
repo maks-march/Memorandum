@@ -31,8 +31,11 @@ public class MemorandumApiFactory : WebApplicationFactory<Program>
     /// <summary>Переопределения конфигурации (аналог appsettings/переменных окружения).</summary>
     public Dictionary<string, string?> Settings { get; init; } = new()
     {
-        ["Mock:Enabled"] = "true",
         ["Database:Provider"] = "Sqlite",
+        ["Mock:Enabled"] = "true",
+        // Тесты не должны упираться в лимит: конкретные значения задаются в RateLimitTests.
+        ["RateLimit:AuthPermitLimit"] = "1000",
+        ["RateLimit:GlobalPermitLimit"] = "1000",
     };
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Memorandum.Domain.Organizations;
 using Memorandum.Domain.Users;
 using Memorandum.Infrastructure.Persistence;
+using Memorandum.Infrastructure.Persistence.DataProtection;
 
 namespace Memorandum.Tests.Infrastructure;
 
@@ -132,7 +133,10 @@ public sealed class ModelTests
 
         var unbounded = db.Model.GetEntityTypes()
             .SelectMany(entity => entity.GetProperties())
-            .Where(property => property.ClrType == typeof(string) && property.GetMaxLength() is null)
+            // XML ключа Data Protection — единственное строковое поле без лимита: его длина задана форматом ключа.
+            .Where(property => property.ClrType == typeof(string)
+                && property.GetMaxLength() is null
+                && property.DeclaringType.ClrType != typeof(DataProtectionKey))
             .Select(property => $"{property.DeclaringType.Name}.{property.Name}")
             .ToArray();
 

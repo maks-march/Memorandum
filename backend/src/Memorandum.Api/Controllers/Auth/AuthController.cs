@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Memorandum.Api.Infrastructure.RateLimiting;
 using Memorandum.Api.Auth;
 using Memorandum.Api.Contracts;
 using Memorandum.Api.Mapping;
@@ -36,6 +38,7 @@ public sealed class AuthController(
     [HttpPost("register")]
     [AllowAnonymous]
     [RequireAntiforgeryToken]
+    [EnableRateLimiting(RateLimitingExtensions.AuthPolicy)]
     [ProducesResponseType<MeHttpResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
@@ -61,8 +64,10 @@ public sealed class AuthController(
     [HttpPost("login")]
     [AllowAnonymous]
     [RequireAntiforgeryToken]
+    [EnableRateLimiting(RateLimitingExtensions.AuthPolicy)]
     [ProducesResponseType<LoginHttpResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Login([FromBody] LoginHttpRequest request, CancellationToken cancellationToken)
     {
         var result = await authService.LoginAsync(new LoginRequest(request.Email, request.Password), cancellationToken);

@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -5,6 +8,7 @@ using Memorandum.Application.Abstractions;
 using Memorandum.Domain.Interfaces;
 using Memorandum.Infrastructure.Identity;
 using Memorandum.Infrastructure.Persistence;
+using Memorandum.Infrastructure.Persistence.DataProtection;
 using Memorandum.Infrastructure.Persistence.Repositories;
 using Memorandum.Infrastructure.Security;
 
@@ -30,6 +34,13 @@ public static class DependencyInjection
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<ICredentialRepository, CredentialRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // Ключи Data Protection — в БД и с общим именем приложения: иначе после деплоя
+        // cookie и XSRF-токены «сами» перестают проверяться.
+        services.AddDataProtection().SetApplicationName("memorandum");
+        services.AddOptions<KeyManagementOptions>()
+            .Configure<IServiceScopeFactory>((options, scopeFactory) =>
+                options.XmlRepository = new EfXmlRepository(scopeFactory));
 
         services.AddSingleton<IPasswordHasher, AspNetCorePasswordHasher>();
         services.AddHttpContextAccessor();
