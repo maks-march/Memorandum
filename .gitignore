@@ -64,3 +64,9 @@ infra/certs/
 infra/.deployed_tag
 infra/.previous_tag
 backups/
+
+# ── Local memory and notes ───────────────────────────────────────────────────────────
+.memory/
+DESIGN.md
+PRODUCT.md
+

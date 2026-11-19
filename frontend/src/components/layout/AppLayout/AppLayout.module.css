@@ -1,0 +1,18 @@
+/* frontend/src/components/layout/AppLayout/AppLayout.module.css */
+
+.layout {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg-primary, #ffffff);
+  color: var(--color-text-primary, #1d1d1f);
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+}
