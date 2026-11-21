@@ -49,7 +49,7 @@ internal static class ResultMapping
     private static int StatusFor(string code) => code switch
     {
         ErrorCodes.NotFound => StatusCodes.Status404NotFound,
-        ErrorCodes.TooManyRequests => StatusCodes.Status429TooManyRequests,
+        ErrorCodes.TooManyRequests or ErrorCodes.ResetTooManyRequests => StatusCodes.Status429TooManyRequests,
         ErrorCodes.Forbidden => StatusCodes.Status403Forbidden,
         ErrorCodes.InvalidCredentials or ErrorCodes.UserInactive => StatusCodes.Status401Unauthorized,
         ErrorCodes.EmailDuplicate or ErrorCodes.ReferenceInUse

@@ -23,6 +23,13 @@ public static class ErrorCodes
     public const string MemberAlreadyExists = "MEMBER_ALREADY_EXISTS";
     public const string LastOrgAdminRequired = "LAST_ORG_ADMIN_REQUIRED";
 
+    // смена пароля
+    public const string ResetCodeInvalid = "RESET_CODE_INVALID";
+    public const string ResetCodeExpired = "RESET_CODE_EXPIRED";
+    public const string ResetTicketNotFound = "RESET_TICKET_NOT_FOUND";
+    public const string ResetAttemptsExhausted = "RESET_ATTEMPTS_EXHAUSTED";
+    public const string ResetTooManyRequests = "RESET_TOO_MANY_REQUESTS";
+
     // бизнес
     public const string ReferenceInUse = "REFERENCE_IN_USE";
 }

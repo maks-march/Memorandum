@@ -28,11 +28,16 @@ public class MemorandumApiFactory : WebApplicationFactory<Program>
     /// <summary>Окружение, в котором стартует приложение.</summary>
     public string Environment { get; init; } = "Development";
 
+    /// <summary>Последний шаг настройки контейнера: тест подменяет сервисы после регистрации приложения.</summary>
+    public Action<IServiceCollection>? ConfigureServices { get; init; }
+
     /// <summary>Переопределения конфигурации (аналог appsettings/переменных окружения).</summary>
     public Dictionary<string, string?> Settings { get; init; } = new()
     {
         ["Database:Provider"] = "Sqlite",
         ["Mock:Enabled"] = "true",
+        ["PasswordReset:CodePepper"] = "test-pepper",
+        ["Redis:Configuration"] = "localhost:6379,abortConnect=false,connectTimeout=1000",
         // Тесты не должны упираться в лимит: конкретные значения задаются в RateLimitTests.
         ["RateLimit:AuthPermitLimit"] = "1000",
         ["RateLimit:GlobalPermitLimit"] = "1000",
@@ -48,6 +53,7 @@ public class MemorandumApiFactory : WebApplicationFactory<Program>
         builder.ConfigureTestServices(services =>
         {
             services.AddControllers().AddApplicationPart(typeof(TestOnlyBoomController).Assembly);
+            ConfigureServices?.Invoke(services);
 
             // Последняя регистрация побеждает: часы из теста заменяют TimeProvider.System.
             if (TimeProvider is not null)
@@ -55,7 +61,6 @@ public class MemorandumApiFactory : WebApplicationFactory<Program>
 
             if (Database is not null)
             {
-                services.RemoveAll<DbContextOptions<AppDbContext>>();
                 services.RemoveAll<DbContextOptions>();
                 services.AddDbContext<AppDbContext>(options => options.UseSqlite(Database));
             }

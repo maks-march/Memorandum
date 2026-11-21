@@ -5,9 +5,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Memorandum.Application.Abstractions;
+using Memorandum.Application.PasswordChange;
 using Memorandum.Domain.Interfaces;
+using Memorandum.Infrastructure.Email;
 using Memorandum.Infrastructure.Identity;
 using Memorandum.Infrastructure.Persistence;
+using Memorandum.Infrastructure.Redis;
+using StackExchange.Redis;
 using Memorandum.Infrastructure.Persistence.DataProtection;
 using Memorandum.Infrastructure.Persistence.Repositories;
 using Memorandum.Infrastructure.Security;
@@ -46,7 +50,34 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
 
+        services.AddPasswordReset(configuration);
+
         return services;
+    }
+
+    /// <summary>
+    /// Сброс пароля живёт в Redis: тикеты с TTL и атомарная проверка кода.
+    /// Соединение — синглтон; <c>abortConnect=false</c>, чтобы недоступный Redis
+    /// не валил старт сервиса целиком.
+    /// </summary>
+    private static void AddPasswordReset(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<PasswordResetOptions>(configuration.GetSection(PasswordResetOptions.SectionName));
+
+        var redisConfiguration = configuration["Redis:Configuration"];
+
+        if (string.IsNullOrWhiteSpace(redisConfiguration))
+            throw new InvalidOperationException(
+                "Не задана Redis:Configuration — коды смены пароля хранятся в Redis (переменная Redis__Configuration).");
+
+        var options = ConfigurationOptions.Parse(redisConfiguration);
+        options.AbortOnConnectFail = false;
+        options.ConnectRetry = 3;
+        options.ConnectTimeout = 5000;
+
+        services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(options));
+        services.AddSingleton<IPasswordResetTicketStore, RedisPasswordResetTicketStore>();
+        services.AddScoped<IEmailSender, ConsoleEmailSender>();
     }
 
     private static (string Provider, string ConnectionString) ResolveConnection(IConfiguration configuration)

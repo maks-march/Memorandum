@@ -25,6 +25,12 @@ public sealed record Error(
 
     public static Error Business(string code, string message) => new(code, message);
 
+    /// <summary>Ошибка с дополнительными данными для клиента (например, остаток попыток).</summary>
+    public static Error Business(
+        string code,
+        string message,
+        IReadOnlyDictionary<string, object>? details) => new(code, message, Details: details);
+
     public static Error FromDomainException(DomainException exception) => new(exception.Code, exception.Message);
 
 }

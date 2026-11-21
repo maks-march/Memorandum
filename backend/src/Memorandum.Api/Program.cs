@@ -17,25 +17,7 @@ var env = builder.Environment;
 var provider = builder.Configuration["Database:Provider"] ?? "Sqlite";
 var allowedHosts = builder.Configuration["AllowedHosts"];
 
-if (env.IsProduction())
-{
-    if (!string.Equals(provider, "Postgres", StringComparison.OrdinalIgnoreCase))
-        throw new InvalidOperationException(
-            "Production требует Database:Provider = Postgres. Проверьте appsettings.Production.json.");
-
-    if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("Postgres")))
-        throw new InvalidOperationException(
-            "Production требует ConnectionStrings:Postgres (переменная окружения ConnectionStrings__Postgres).");
-
-    if (builder.Configuration.GetValue("Mock:Enabled", false))
-        throw new InvalidOperationException(
-            "Production не может работать с Mock:Enabled=true. Заглушки должны быть отключены.");
-
-    if (string.IsNullOrWhiteSpace(allowedHosts) || allowedHosts.Contains('*'))
-        throw new InvalidOperationException(
-            "Production требует конкретный AllowedHosts (домен через ';'), значение '*' запрещено. " +
-            "Задайте переменную окружения AllowedHosts.");
-}
+builder.ProductionGuards(env, provider, allowedHosts);
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -165,6 +147,7 @@ app.MapControllers();
 await app.ApplyMigrationsAsync();
 
 app.Run();
+
 
 /// <summary>Точка входа. Публичный partial нужен интеграционным тестам (WebApplicationFactory&lt;Program&gt;).</summary>
 public partial class Program;

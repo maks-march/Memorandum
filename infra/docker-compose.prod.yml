@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  PROD: nginx (статика SPA + прокси) + api + postgres.
+#  PROD: nginx (статика SPA + прокси) + api + postgres + redis.
 #  Запуск:  ./infra/prod-up.sh          (образы тянутся из GHCR)
 #  Локальная сборка: docker build -f infra/api.Dockerfile -t memorandum-api:local . (см. infra/README.md)
 #  Наружу:  80. HTTPS — вместе с -f infra/docker-compose.tls.yml (TLS_ENABLED=1 в infra/.env).
@@ -34,6 +34,37 @@ services:
       - no-new-privileges:true
     # порт наружу не публикуем — только внутри сети
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # только внутренняя сеть: снаружи Redis недоступен
+    command:
+      - "redis-server"
+      - "--requirepass"
+      - "${REDIS_PASSWORD:?задайте REDIS_PASSWORD в infra/.env}"
+      - "--maxmemory"
+      - "128mb"
+      - "--maxmemory-policy"
+      - "noeviction"
+      - "--save"
+      - ""
+      - "--appendonly"
+      - "no"
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?задайте REDIS_PASSWORD в infra/.env}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    # noeviction + без персистентности: тикеты живут минутами, терять их при
+    # перезапуске безопасно (пользователь запросит код заново), а вытеснение
+    # ключей молча ломало бы попытки ввода.
+
   api:
     # готовый образ из GHCR — собирается в CI (Release), на сервере не собирается
     image: ${API_IMAGE:-ghcr.io/maks-march/memorandum-api}:${IMAGE_TAG:-stable}
@@ -41,12 +72,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://0.0.0.0:8080
       ConnectionStrings__Postgres: "Host=db;Port=5432;Database=${POSTGRES_DB:-memorandum};Username=${POSTGRES_USER:-memorandum};Password=${POSTGRES_PASSWORD}"
       Database__Provider: Postgres
       Mock__Enabled: "false"
+      # коды смены пароля: Redis в этой же сети, пароль — из infra/.env
+      Redis__Configuration: "redis:6379,password=${REDIS_PASSWORD:?задайте REDIS_PASSWORD в infra/.env}"
+      # соль для хеша кода: при смене все выданные коды перестают действовать
+      PasswordReset__CodePepper: "${PASSWORD_RESET_PEPPER:?задайте PASSWORD_RESET_PEPPER в infra/.env}"
       # host-фильтрация: домен + localhost (для healthcheck изнутри контейнера)
       AllowedHosts: "${APP_HOST:-localhost};localhost;127.0.0.1"
       # доверяем X-Forwarded-* только от nginx из этой docker-сети (см. networks ниже)

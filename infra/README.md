@@ -2,8 +2,8 @@
 
 | Файл | Что поднимает | Куда смотреть |
 |---|---|---|
-| `docker-compose.dev.yml` | api (`dotnet watch`, SQLite) + web (Vite dev-server) | фронт `:5173`, API `:5000`, Scalar `:5000/scalar/v1` |
-| `docker-compose.prod.yml` | nginx (SPA + прокси) + api (Postgres) + db + опц. certbot | `:80` (и `:443` с профилем `tls`) |
+| `docker-compose.dev.yml` | api (`dotnet watch`, SQLite) + web (Vite dev-server) + redis | фронт `:5173`, API `:5000`, Scalar `:5000/scalar/v1` |
+| `docker-compose.prod.yml` | nginx (SPA + прокси) + api (Postgres) + db + redis + опц. certbot | `:80` (и `:443` с профилем `tls`) |
 
 ## DEV
 
@@ -13,7 +13,10 @@ docker compose -f infra/docker-compose.dev.yml up
 
 - бэкенд перезапускается сам при изменении `backend/**`;
 - фронт — горячая перезагрузка, `/api` и `/mock` проксируются на `api:5000`;
-- Scalar открыт на `http://localhost:5000/scalar/v1`.
+- Scalar открыт на `http://localhost:5000/scalar/v1`;
+- Redis поднимается рядом (`redis:6379` внутри сети, наружу порт не публикуется) — в нём живут коды смены пароля.
+
+Тестам нужен Redis на хосте: `docker run -d -p 6379:6379 redis:7-alpine` (адрес меняется переменной `REDIS`).
 
 Без Docker:
 
@@ -47,6 +50,21 @@ API_IMAGE=memorandum-api WEB_IMAGE=memorandum-web IMAGE_TAG=local \
   docker compose -f infra/docker-compose.prod.yml --env-file infra/.env up -d
 curl -fsS http://localhost/api/health
 ```
+
+### Redis
+
+Redis — отдельный сервис в прод-стеке: `redis:7-alpine` с `--requirepass`, `--maxmemory 128mb
+--maxmemory-policy noeviction`, без персистентности. Порт наружу не публикуется, доступен только
+`api` по имени `redis`. Пароль и соль кодов — `REDIS_PASSWORD` и `PASSWORD_RESET_PEPPER`
+в `infra/.env` (генерируются `prod-up.sh`). Смена `PASSWORD_RESET_PEPPER` делает
+недействительными все выданные коды.
+
+```bash
+docker compose -f infra/docker-compose.prod.yml --env-file infra/.env exec redis redis-cli ping
+```
+
+Без персистентности: тикеты живут 15 минут, при перезапуске Redis пользователь просто
+запрашивает код заново — это дешевле, чем гонять AOF/RDB ради временных ключей.
 
 TLS — `infra/docker-compose.tls.yml` поверх прод-стека. Нужен домен в `APP_HOST`
 (или публичный IP) и A-запись на сервер.
@@ -129,8 +147,8 @@ sudo ./infra/prod-up.sh --app-host 203.0.113.10 --dry-run     # только п�
 
 ```
 infra/
-├─ docker-compose.dev.yml     dev: api + vite
-├─ docker-compose.prod.yml    prod: web + api + db
+├─ docker-compose.dev.yml     dev: api + vite + redis
+├─ docker-compose.prod.yml    prod: web + api + db + redis
 ├─ api.Dockerfile             publish API, non-root (собирается в CI или вручную)
 ├─ web.Dockerfile             build Vite → nginx + статика (собирается в CI или вручную)
 ├─ nginx/default.conf.template  SPA, /api → api:8080, /mock → 404

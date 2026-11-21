@@ -27,6 +27,7 @@ public sealed class DependencyInjectionTests
         {
             ["Database:Provider"] = "Sqlite",
             ["ConnectionStrings:Sqlite"] = "Data Source=:memory:",
+            ["Redis:Configuration"] = "localhost:6379,abortConnect=false",
         });
         using var scope = provider.CreateScope();
 
@@ -46,6 +47,7 @@ public sealed class DependencyInjectionTests
         {
             ["Database:Provider"] = "Postgres",
             ["ConnectionStrings:Postgres"] = "Host=localhost;Database=memorandum;Username=u;Password=p",
+            ["Redis:Configuration"] = "localhost:6379,abortConnect=false",
         });
         using var scope = provider.CreateScope();
 
@@ -57,7 +59,11 @@ public sealed class DependencyInjectionTests
     public void Postgres_without_connection_string_fails_with_clear_message()
     {
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            BuildProvider(new() { ["Database:Provider"] = "Postgres" }));
+            BuildProvider(new()
+            {
+                ["Database:Provider"] = "Postgres",
+                ["Redis:Configuration"] = "localhost:6379,abortConnect=false",
+            }));
 
         Assert.Contains("ConnectionStrings:Postgres", exception.Message, StringComparison.Ordinal);
     }
@@ -66,8 +72,25 @@ public sealed class DependencyInjectionTests
     public void Unknown_provider_fails_with_clear_message()
     {
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            BuildProvider(new() { ["Database:Provider"] = "Oracle" }));
+            BuildProvider(new()
+            {
+                ["Database:Provider"] = "Oracle",
+                ["Redis:Configuration"] = "localhost:6379,abortConnect=false",
+            }));
 
         Assert.Contains("Oracle", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Missing_redis_configuration_fails_with_clear_message()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            BuildProvider(new()
+            {
+                ["Database:Provider"] = "Sqlite",
+                ["ConnectionStrings:Sqlite"] = "Data Source=:memory:",
+            }));
+
+        Assert.Contains("Redis:Configuration", exception.Message, StringComparison.Ordinal);
     }
 }

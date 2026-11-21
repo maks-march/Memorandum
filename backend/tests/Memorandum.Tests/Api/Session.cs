@@ -54,9 +54,19 @@ internal sealed class Session(HttpClient client)
         return body!.Id;
     }
 
-    public async Task<LoginHttpResponse> LoginAsync(string email)
+    public Task<LoginHttpResponse> LoginAsync(string email, string password = "password123") =>
+        LoginAsync(new LoginHttpRequest(email, password));
+
+    /// <summary>Попытка входа без ожидания успеха: тесту нужен только статус.</summary>
+    public async Task<HttpStatusCode> TryLoginAsync(string email, string password)
     {
-        using var response = await PostAsync("/api/v1/auth/login", new LoginHttpRequest(email, "password123"));
+        using var response = await PostAsync("/api/v1/auth/login", new LoginHttpRequest(email, password));
+        return response.StatusCode;
+    }
+
+    public async Task<LoginHttpResponse> LoginAsync(LoginHttpRequest request)
+    {
+        using var response = await PostAsync("/api/v1/auth/login", request);
 
         var raw = await response.Content.ReadAsStringAsync();
         Assert.True(response.StatusCode == HttpStatusCode.OK, $"Вход не прошёл: {raw}");

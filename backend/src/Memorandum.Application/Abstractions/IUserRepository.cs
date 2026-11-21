@@ -10,4 +10,7 @@ public interface IUserRepository : IRepository<User>
 
     /// <summary>Отслеживаемый пользователь: нужен сценариям, которые меняют состояние.</summary>
     Task<User?> GetByNormalizedEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default);
+
+    /// <summary>Отслеживаемый пользователь: нужен сценариям, которые меняют состояние.</summary>
+    Task<User?> GetForUpdateAsync(long id, CancellationToken cancellationToken = default);
 }

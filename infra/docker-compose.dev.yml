@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  DEV: горячая перезагрузка бэка и фронта, SQLite, всё локально.
+#  DEV: горячая перезагрузка бэка и фронта, SQLite, Redis, всё локально.
 #  Запуск:  docker compose -f infra/docker-compose.dev.yml up
 #  Фронт:   http://localhost:5173      API: http://localhost:5000/scalar/v1
 # ─────────────────────────────────────────────────────────────────────────────
@@ -18,10 +18,15 @@ services:
       DOTNET_USE_POLLING_FILE_WATCHER: "1"      # надёжнее на Docker Desktop (Win/Mac)
       Database__Provider: Sqlite
       Mock__Enabled: "true"
+      # коды смены пароля: Redis ниже, в этой же compose-сети
+      Redis__Configuration: "redis:6379"
     volumes:
       - ../backend:/src
       - nuget:/root/.nuget/packages          # быстрый restore между перезапусками
       # файл SQLite (app.db) создаётся рядом с проектом и не коммитится: src/Memorandum.Api/app.db
+    depends_on:
+      redis:
+        condition: service_healthy
     ports:
       - "5000:5000"                          # Scalar + OpenAPI доступны снаружи контейнера
     healthcheck:
@@ -31,6 +36,20 @@ services:
       timeout: 5s
       retries: 10
       start_period: 60s
+
+  redis:
+    image: redis:7-alpine                     # тикеты смены пароля (TTL + Lua)
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redisdata:/data
+    # порт наружу не публикуем: снаружи не нужен. Для тестов на хосте:
+    #   docker run -d --name memorandum-redis -p 6379:6379 redis:7-alpine
 
   web:
     image: node:26-alpine
@@ -52,3 +71,4 @@ services:
 volumes:
   nuget:
   node_modules:
+  redisdata:
