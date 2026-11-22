@@ -37,8 +37,6 @@ export default function App() {
     void call('/api/health');
   }, [call]);
 
-  const isMock = health?.ok && health.data.mode === 'mock';
-
   return (
     <main className="page">
       <header className="head">
@@ -51,8 +49,8 @@ export default function App() {
             сборка: {appVersion}
           </span>
           {health?.ok && (
-            <span className={`badge ${isMock ? 'badge-mock' : 'badge-api'}`}>
-              ответ от: {isMock ? 'MOCK' : 'API'}
+            <span className="badge badge-api">
+              ответ от: {health.data.mode === 'mock' ? 'MOCK' : 'API'}
             </span>
           )}
           {loading && <span className="badge">загрузка…</span>}
@@ -62,8 +60,8 @@ export default function App() {
       <section className="card">
         <p className="hint">
           Запросы идут по относительным путям. Версия API — сегмент URL:{' '}
-          <code>/api/v1/system/info</code>; health и mock от версии не зависят
-          (<code>/api/health</code>, <code>/mock/api/health</code>).
+          <code>/api/v1/system/info</code>; health от версии не зависит
+          (<code>/api/health</code>).
           {isDev ? (
             <>
               {' '}В dev их проксирует Vite на <code>{proxyTarget}</code>.
@@ -77,11 +75,8 @@ export default function App() {
           <button onClick={() => void call('/api/health')} disabled={loading}>
             GET /api/health
           </button>
-          <button onClick={() => void call('/mock/api/health')} disabled={loading} className="secondary">
-            GET /mock/api/health
-          </button>
-          <button onClick={() => void call('/mock/api/health?status=500')} disabled={loading} className="secondary">
-            mock → 500
+          <button onClick={() => void call('/api/v1/auth/csrf')} disabled={loading} className="secondary">
+            GET /api/v1/auth/csrf
           </button>
           <button onClick={() => void call('/api/v1/system/info')} disabled={loading} className="secondary">
             GET /api/v1/system/info

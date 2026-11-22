@@ -8,7 +8,8 @@ namespace Memorandum.Api.Controllers;
 [ApiVersionNeutral]
 [Route("api/health")]
 [Tags("Health")]
-public sealed class HealthController(IConfiguration config, IHostEnvironment env) : ControllerBase
+public sealed class HealthController(IConfiguration config, IHostEnvironment env, TimeProvider timeProvider)
+    : ControllerBase
 {
     /// <summary>Диагностический health: окружение, провайдер БД, версия сборки (в ней — git sha).</summary>
     /// <response code="200">Сервис работает.</response>
@@ -22,7 +23,7 @@ public sealed class HealthController(IConfiguration config, IHostEnvironment env
             Database: config["Database:Provider"] ?? "Sqlite",
             Version: BuildInfo.Version,
             Machine: Environment.MachineName,
-            TimeUtc: DateTime.UtcNow));
+            TimeUtc: timeProvider.GetUtcNow().UtcDateTime));
 }
 
 /// <param name="Status">Всегда "ok" — это ответ живого API.</param>

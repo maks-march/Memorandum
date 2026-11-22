@@ -16,6 +16,8 @@ public sealed class EnvironmentGuardsTests
             ["ConnectionStrings:Postgres"] = "Host=localhost;Database=memorandum;Username=u;Password=p",
             ["AllowedHosts"] = "memorandum.example.ru",
             ["Mock:Enabled"] = "false",
+            ["PasswordReset:CodePepper"] = "prod-pepper",
+            ["Redis:Configuration"] = "localhost:6379,abortConnect=false,connectTimeout=1000",
             ["Proxy:TrustedNetworks:0"] = "172.28.0.0/16",
         };
 
@@ -35,21 +37,21 @@ public sealed class EnvironmentGuardsTests
     }
 
     [Fact]
-    public void Production_with_mock_enabled_fails_fast()
-    {
-        using var factory = Production(new() { ["Mock:Enabled"] = "true" });
-
-        var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
-        Assert.Contains("Mock", exception.ToString(), StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void Production_with_wildcard_allowed_hosts_fails_fast()
     {
         using var factory = Production(new() { ["AllowedHosts"] = "*" });
 
         var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
         Assert.Contains("AllowedHosts", exception.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Production_with_mock_enabled_fails_fast()
+    {
+        using var factory = Production(new() { ["Mock:Enabled"] = "true" });
+
+        var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+        Assert.Contains("Mock", exception.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -64,7 +66,9 @@ public sealed class EnvironmentGuardsTests
                 ["ConnectionStrings:Postgres"] = "Host=localhost;Database=memorandum;Username=u;Password=p",
                 ["AllowedHosts"] = "memorandum.example.ru",
                 ["Mock:Enabled"] = "false",
-                },
+                ["PasswordReset:CodePepper"] = "prod-pepper",
+                ["Redis:Configuration"] = "localhost:6379,abortConnect=false,connectTimeout=1000",
+            },
         };
 
         var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
@@ -72,13 +76,11 @@ public sealed class EnvironmentGuardsTests
     }
 
     [Fact]
-    public async Task Development_with_mock_enabled_returns_mock_payload()
+    public void Production_without_password_reset_pepper_fails_fast()
     {
-        using var factory = new MemorandumApiFactory();
-        var client = factory.CreateClient();
+        using var factory = Production(new() { ["PasswordReset:CodePepper"] = "" });
 
-        var response = await client.GetAsync("/mock/api/health");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+        Assert.Contains("PasswordReset:CodePepper", exception.ToString(), StringComparison.Ordinal);
     }
 }

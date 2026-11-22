@@ -21,6 +21,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    # Redis-тесты ходят на localhost:6379 — поднимаем сервис рядом с job.
+    # Без него падают RedisPasswordResetTicketStoreTests и сценарий смены пароля.
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -38,11 +51,25 @@ jobs:
       - name: Сборка
         run: dotnet build backend/Memorandum.slnx --no-restore -c Release
 
+      - name: Ждать Redis
+        run: |
+          for _ in {1..30}; do
+            if docker run --rm --network host redis:7-alpine redis-cli -h 127.0.0.1 ping | grep -q PONG; then
+              echo "Redis готов"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Redis не поднялся за 30 с"
+          exit 1
+
       - name: Тесты
+        env:
+          REDIS: localhost:6379
         run: >
           dotnet test backend/Memorandum.slnx
           --no-build -c Release
-          --logger "console;verbosity=normal"
+          --logger "console;verbosity=minimal"
           --logger "trx;LogFileName=tests.trx"
           --results-directory ${{ github.workspace }}/test-results
 
@@ -123,23 +150,46 @@ jobs:
           docker build -f infra/api.Dockerfile -t memorandum-api:ci .
           docker build -f infra/web.Dockerfile -t memorandum-web:ci .
 
-      - name: api-образ отвечает на health в прод-конфиге
+      # Приложение на старте применяет миграции, то есть ходит в Postgres.
+      # Поэтому образ проверяем в compose-стеке (профиль ci), а не отдельным
+      # docker run: там есть и db, и redis, и та же сеть, что в прод-стеке.
+      - name: Запустить api-образ в прод-конфиге
         run: |
           set -eu
-          docker run -d --name api-ci -p 18080:8080 \
-            -e AllowedHosts=localhost \
-            -e Database__Provider=Postgres \
-            -e ConnectionStrings__Postgres="Host=db;Port=5432;Database=x;Username=u;Password=p" \
-            -e Proxy__TrustedNetworks__0=172.16.0.0/12 \
-            memorandum-api:ci
+          # Имя контейнера фиксированное: подчищаем возможный остаток от прошлого
+          # прогона, иначе docker откажется создавать api-ci.
+          docker rm -f api-ci >/dev/null 2>&1 || true
 
+          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env \
+            up -d db redis
+          API_IMAGE=memorandum-api IMAGE_TAG=ci \
+            docker compose -f infra/docker-compose.prod.yml --env-file infra/.env \
+            run --rm -d --name api-ci --service-ports api-ci
+
+      - name: api-ответ отвечает на health
+        id: health
+        run: |
+          set -eu
+          up=0
           for i in $(seq 1 30); do
             if curl -fsS -m 2 -o /dev/null http://localhost:18080/api/health; then
               echo "health ответил за $((i * 2)) с"
+              up=1
               break
+            fi
+            if [ "$(docker inspect -f '{{.State.Running}}' api-ci 2>/dev/null || echo false)" != "true" ]; then
+              echo "контейнер api-ci завершился на старте:"
+              docker logs api-ci || true
+              exit 1
             fi
             sleep 2
           done
+
+          if [ "$up" -ne 1 ]; then
+            echo "health не ответил за 60 с:"
+            docker logs api-ci || true
+            exit 1
+          fi
 
           body="$(curl -fsS http://localhost:18080/api/health)"
           echo "$body"
@@ -149,17 +199,31 @@ jobs:
       - name: api-образ без AllowedHosts падает (fail-fast на артефакте)
         run: |
           set -eu
-          if docker run --name api-nohosts \
-               -e Database__Provider=Postgres \
-               -e ConnectionStrings__Postgres="Host=db;Port=5432;Database=x;Username=u;Password=p" \
-               -e Proxy__TrustedNetworks__0=172.16.0.0/12 \
-               memorandum-api:ci; then
+          if API_IMAGE=memorandum-api IMAGE_TAG=ci \
+             docker compose -f infra/docker-compose.prod.yml --env-file infra/.env \
+               run --rm --no-deps -e AllowedHosts="" api-ci; then
             echo "контейнер стартовал без AllowedHosts — fail-fast не работает"
-            docker rm -f api-nohosts || true
             exit 1
           fi
-          docker rm -f api-nohosts || true
           echo "контейнер завершился с ошибкой, как и требовалось"
+
+      - name: api-образ без PasswordReset__CodePepper падает
+        run: |
+          set -eu
+          if API_IMAGE=memorandum-api IMAGE_TAG=ci \
+             docker compose -f infra/docker-compose.prod.yml --env-file infra/.env \
+               run --rm --no-deps -e PasswordReset__CodePepper="" api-ci; then
+            echo "контейнер стартовал без соли кодов — fail-fast не работает"
+            exit 1
+          fi
+          echo "контейнер завершился с ошибкой, как и требовалось"
+
+      - name: Убрать контейнеры инфраструктуры
+        if: always()
+        run: |
+          docker rm -f api-ci || true
+          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env \
+            down -v --remove-orphans || true
 
       - name: nginx -t (HTTP-шаблон)
         run: |
