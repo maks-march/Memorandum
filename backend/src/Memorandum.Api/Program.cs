@@ -1,125 +1,44 @@
-using System.Diagnostics;
-using Asp.Versioning;
-using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Mvc;
-using Memorandum.Api;
+using Memorandum.Api.Infrastructure;
+using Memorandum.Api.Infrastructure.Errors;
+using Memorandum.Application;
+using Memorandum.Infrastructure;
 using Scalar.AspNetCore;
+
+// Точка входа читается сверху вниз как оглавление: проверки окружения, регистрация
+// сервисов по категориям, затем конвейер и карта приложения. Детали — в Infrastructure.
 
 var builder = WebApplication.CreateBuilder(args);
 
-var env = builder.Environment;
-var provider = builder.Configuration["Database:Provider"] ?? "Sqlite";
-var allowedHosts = builder.Configuration["AllowedHosts"];
+// 1. Окружение: в Production конфигурация проверяется до сборки контейнера.
+builder.ProductionGuards();
+builder.AddTrustedProxies();
 
-if (env.IsProduction())
-{
-    if (!string.Equals(provider, "Postgres", StringComparison.OrdinalIgnoreCase))
-        throw new InvalidOperationException(
-            "Production требует Database:Provider = Postgres. Проверьте appsettings.Production.json.");
+// 2. Слои приложения.
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
 
-    if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("Postgres")))
-        throw new InvalidOperationException(
-            "Production требует ConnectionStrings:Postgres (переменная окружения ConnectionStrings__Postgres).");
-
-    if (builder.Configuration.GetValue("Mock:Enabled", false))
-        throw new InvalidOperationException(
-            "Production не может работать с Mock:Enabled=true. Заглушки должны быть отключены.");
-
-    if (string.IsNullOrWhiteSpace(allowedHosts) || allowedHosts.Contains('*'))
-        throw new InvalidOperationException(
-            "Production требует конкретный AllowedHosts (домен через ';'), значение '*' запрещено. " +
-            "Задайте переменную окружения AllowedHosts.");
-}
-
-builder.Services.AddControllers();
-builder.Services.AddProblemDetails();
-
+// 3. API: безопасность (антифоржери, cookie-auth, лимиты, часы), версии, CORS.
 builder.Services
-    .AddApiVersioning(o =>
-    {
-        o.DefaultApiVersion = new ApiVersion(1, 0);
-        o.ReportApiVersions = true;
-        o.ApiVersionReader = new UrlSegmentApiVersionReader();
-    })
-    .AddMvc()
-    .AddApiExplorer(o =>
-    {
-        o.GroupNameFormat = "'v'VVV";
-        o.SubstituteApiVersionInUrl = true;
-    })
-    .AddOpenApi();
+    .AddApiSecurity(builder.Configuration, builder.Environment)
+    .AddApiVersioningAndDocs();
 
-var trustedProxies = builder.Configuration.GetSection("Proxy:TrustedNetworks").Get<string[]>();
-if (trustedProxies is null or [])
-{
-    if (env.IsProduction())
-        throw new InvalidOperationException(
-            "Production требует Proxy:TrustedNetworks — CIDR docker-сети с nginx " +
-            "(переменная Proxy__TrustedNetworks__0). Без него X-Forwarded-* отбрасываются.");
-
-    trustedProxies = ["172.16.0.0/12"];
-}
-
-builder.Services.Configure<ForwardedHeadersOptions>(o =>
-{
-    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    o.KnownIPNetworks.Clear();
-    o.KnownProxies.Clear();
-    foreach (var cidr in trustedProxies)
-        o.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(cidr));
-});
-
-builder.Services.AddCors(o => o.AddPolicy("dev", p => p
-    .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
-    .AllowAnyHeader()
-    .AllowAnyMethod()
-    .AllowCredentials()));
+if (builder.Environment.IsDevelopment())
+    builder.Services.AddApiCors(builder.Configuration);
 
 var app = builder.Build();
 
-app.UseForwardedHeaders();
+// 4. Конвейер: forward-заголовки → роутинг → лимиты → auth → антифоржери → ошибки.
+app.UseApiPipeline();
 
-app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
-{
-    var error = context.Features.Get<IExceptionHandlerFeature>()?.Error;
-    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-    var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
+// 5. Карта приложения: контроллеры, Scalar, схема БД.
+app.UseApiDocumentation();
 
-    logger.LogError(error, "Необработанное исключение. traceId={TraceId} path={Path}", traceId, context.Request.Path);
-
-    var problem = new ProblemDetails
-    {
-        Status = StatusCodes.Status500InternalServerError,
-        Title = "Внутренняя ошибка сервера",
-        Detail = app.Environment.IsDevelopment() ? error?.ToString() : "Обратитесь к администратору и сообщите traceId.",
-        Instance = context.Request.Path
-    };
-    problem.Extensions["traceId"] = traceId;
-
-    await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");
-}));
-
-app.UseStatusCodePages();
-
-var openApiEnabled = app.Configuration.GetValue("OpenApi:Enabled", app.Environment.IsDevelopment());
-if (openApiEnabled)
-{
-    if (env.IsProduction())
-        app.Logger.LogWarning("OpenApi/Scalar включены в Production (OpenApi:Enabled=true). Не оставляйте так постоянно.");
-
-    app.MapOpenApi().WithDocumentPerVersion();
-    app.MapScalarApiReference(o => o
-        .WithTitle("Memorandum API")
-        .AddDocument("v1", "API v1", "/openapi/v1.json", isDefault: true));
-}
-
-if (env.IsDevelopment())
-{
-    app.UseCors("dev");
-}
+if (app.Environment.IsDevelopment())
+    app.UseCors(ServiceCollectionExtensions.DevCorsPolicy);
 
 app.MapControllers();
+
+await app.ApplyMigrationsAsync();
 
 app.Run();
 

@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Memorandum.Infrastructure.Persistence;
 
 namespace Memorandum.Tests;
 
@@ -12,14 +16,31 @@ namespace Memorandum.Tests;
 /// </summary>
 public class MemorandumApiFactory : WebApplicationFactory<Program>
 {
+    /// <summary>Часы, которые получат сценарии и контроллеры. <c>null</c> — системные.</summary>
+    public TimeProvider? TimeProvider { get; init; }
+
+    /// <summary>
+    /// Соединение с БД. Если задано, регистрируется вместо настроенного провайдера:
+    /// тесты с HTTP работают на SQLite в памяти, а не на файле из appsettings.
+    /// </summary>
+    public SqliteConnection? Database { get; init; }
+
     /// <summary>Окружение, в котором стартует приложение.</summary>
     public string Environment { get; init; } = "Development";
+
+    /// <summary>Последний шаг настройки контейнера: тест подменяет сервисы после регистрации приложения.</summary>
+    public Action<IServiceCollection>? ConfigureServices { get; init; }
 
     /// <summary>Переопределения конфигурации (аналог appsettings/переменных окружения).</summary>
     public Dictionary<string, string?> Settings { get; init; } = new()
     {
-        ["Mock:Enabled"] = "true",
         ["Database:Provider"] = "Sqlite",
+        ["Mock:Enabled"] = "true",
+        ["PasswordReset:CodePepper"] = "test-pepper",
+        ["Redis:Configuration"] = "localhost:6379,abortConnect=false,connectTimeout=1000",
+        // Тесты не должны упираться в лимит: конкретные значения задаются в RateLimitTests.
+        ["RateLimit:AuthPermitLimit"] = "1000",
+        ["RateLimit:GlobalPermitLimit"] = "1000",
     };
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -32,6 +53,17 @@ public class MemorandumApiFactory : WebApplicationFactory<Program>
         builder.ConfigureTestServices(services =>
         {
             services.AddControllers().AddApplicationPart(typeof(TestOnlyBoomController).Assembly);
+            ConfigureServices?.Invoke(services);
+
+            // Последняя регистрация побеждает: часы из теста заменяют TimeProvider.System.
+            if (TimeProvider is not null)
+                services.AddSingleton(TimeProvider);
+
+            if (Database is not null)
+            {
+                services.RemoveAll<DbContextOptions>();
+                services.AddDbContext<AppDbContext>(options => options.UseSqlite(Database));
+            }
         });
     }
 }

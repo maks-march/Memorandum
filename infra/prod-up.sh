@@ -254,9 +254,13 @@ else
     fi
   fi
   DB_PASS="$(gen_password)"
-  c_info "создаю infra/.env (пароль БД сгенерирован)"
+  REDIS_PASS="$(gen_password)"
+  PEPPER="$(gen_password)"
+  c_info "создаю infra/.env (пароль БД, пароль Redis и соль кодов сгенерированы)"
   run_sh "cp '$ENV_EXAMPLE' '$ENV_FILE'"
   run_sh "sed -i 's|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$DB_PASS|' '$ENV_FILE'"
+  run_sh "sed -i 's|^REDIS_PASSWORD=.*|REDIS_PASSWORD=$REDIS_PASS|' '$ENV_FILE'"
+  run_sh "sed -i 's|^PASSWORD_RESET_PEPPER=.*|PASSWORD_RESET_PEPPER=$PEPPER|' '$ENV_FILE'"
   run_sh "sed -i 's|^APP_HOST=.*|APP_HOST=$APP_HOST|' '$ENV_FILE'"
   if [ -f "$ENV_EXAMPLE" ] && grep -qE '^WEB_PORT=' "$ENV_EXAMPLE"; then
     run_sh "sed -i 's|^WEB_PORT=.*|WEB_PORT=$WEB_PORT|' '$ENV_FILE'"
@@ -318,11 +322,11 @@ else
 
   if [ "$DRY" -eq 1 ]; then
     printf '   \033[90m$ cd %s && %s compose %s --env-file infra/.env pull\033[0m\n' "$TARGET" "$DOCKER" "$compose_args"
-    printf '   \033[90m$ %s compose %s --env-file infra/.env up -d --remove-orphans db api web\033[0m\n' "$DOCKER" "$compose_args"
+    printf '   \033[90m$ %s compose %s --env-file infra/.env up -d --remove-orphans db redis api web\033[0m\n' "$DOCKER" "$compose_args"
   else
     cd "$TARGET"
     run_sh "$DOCKER compose $compose_args --env-file infra/.env pull"
-    run_sh "$DOCKER compose $compose_args --env-file infra/.env up -d --remove-orphans db api web"
+    run_sh "$DOCKER compose $compose_args --env-file infra/.env up -d --remove-orphans db redis api web"
 
     BASE="http://127.0.0.1:${WEB_PORT}"
     CURL=(curl -fsS)

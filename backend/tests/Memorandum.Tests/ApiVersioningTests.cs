@@ -70,7 +70,6 @@ public sealed class ApiVersioningTests(MemorandumApiFactory factory) : IClassFix
 
     [Theory]
     [InlineData("/api/health")]
-    [InlineData("/mock/api/health")]
     public async Task Neutral_endpoints_ignore_api_version_header(string path)
     {
         var client = factory.CreateClient();
