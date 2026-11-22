@@ -34,8 +34,9 @@ internal static class RedisTestServer
         catch (Exception exception)
         {
             throw new InvalidOperationException(
-                "Redis недоступен (" + Address + "): тестам нужен живой Redis, " +
-                "например `docker run -d -p 6379:6379 redis:7-alpine`. " + exception.Message,
+                "Redis недоступен (" + Address + "): тестам нужен живой Redis. " +
+                "Поднять рядом: `docker compose -f infra/docker-compose.dev.yml up -d redis` " +
+                "или `docker run -d -p 6379:6379 redis:7-alpine`. " + exception.Message,
                 exception);
         }
 

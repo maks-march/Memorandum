@@ -41,7 +41,18 @@ public sealed class PasswordChangeService(
         if (user is null)
             return Result.Success();
 
-        if (!await tickets.TryStartCooldownAsync(user.Id, Options.ResendCooldown, cancellationToken))
+        bool started;
+
+        try
+        {
+            started = await tickets.TryStartCooldownAsync(user.Id, Options.ResendCooldown, cancellationToken);
+        }
+        catch (Exception exception) when (IsStorageFailure(exception))
+        {
+            return FailStorage(exception, "проверка кулдауна", user.Id);
+        }
+
+        if (!started)
             return Result.Failure(Error.Business(
                 ErrorCodes.ResetTooManyRequests,
                 "Код уже отправлен. Повторите запрос позже."));
@@ -56,7 +67,15 @@ public sealed class PasswordChangeService(
             IssuedAt: now,
             Email: user.Email);
 
-        await tickets.SaveAsync(user.Id, ticket, Options.CodeTimeToLive, cancellationToken);
+        try
+        {
+            await tickets.SaveAsync(user.Id, ticket, Options.CodeTimeToLive, cancellationToken);
+        }
+        catch (Exception exception) when (IsStorageFailure(exception))
+        {
+            return FailStorage(exception, "сохранение кода", user.Id);
+        }
+
         await emailSender.SendPasswordResetCodeAsync(
             user.Email, user.Id, code, ticket.ExpiresAt, cancellationToken);
 
@@ -82,7 +101,16 @@ public sealed class PasswordChangeService(
         // Пользователя заранее не ищем: для несуществующего userId тикета просто нет,
         // и ответ совпадает с «код не найден» — перечислить пользователей нельзя.
         var codeHash = PasswordResetCode.Hash(Options.CodePepper, userId, code!);
-        var consumed = await tickets.ConsumeCodeAsync(userId, codeHash, cancellationToken);
+        ConsumeCodeResult consumed;
+
+        try
+        {
+            consumed = await tickets.ConsumeCodeAsync(userId, codeHash, cancellationToken);
+        }
+        catch (Exception exception) when (IsStorageFailure(exception))
+        {
+            return FailStorage(exception, "проверка кода", userId);
+        }
 
         switch (consumed.Status)
         {
@@ -134,5 +162,23 @@ public sealed class PasswordChangeService(
 
         logger.LogInformation("Пароль изменён. UserId={UserId}", userId);
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Хранилище тикетов — внешний Redis: сеть, таймауты, недоступный сервер.
+    /// Для сценария это «сервис временно недоступен», а не 500 с трейсом.
+    /// </summary>
+    private static bool IsStorageFailure(Exception exception) =>
+        exception is not OperationCanceledException;
+
+    private Result FailStorage(Exception exception, string operation, long userId)
+    {
+        logger.LogError(
+            exception,
+            "Хранилище кодов недоступно. Операция={Operation}, UserId={UserId}", operation, userId);
+
+        return Result.Failure(Error.Business(
+            ErrorCodes.StorageUnavailable,
+            "Сервис временно недоступен: не удалось обратиться к хранилищу кодов. Повторите позже."));
     }
 }

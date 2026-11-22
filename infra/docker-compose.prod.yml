@@ -99,6 +99,29 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  # Только для проверки образа в CI: настоящий api сюда не ходит, в prod-стеке
+  # сервис выключен. Запуск: docker compose ... run --rm --service-ports api-ci
+  api-ci:
+    profiles: ["ci"]
+    image: ${API_IMAGE:-ghcr.io/maks-march/memorandum-api}:${IMAGE_TAG:-stable}
+    entrypoint: ["dotnet", "Memorandum.Api.dll"]
+    environment: &api-ci-environment
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      AllowedHosts: localhost
+      Database__Provider: Postgres
+      ConnectionStrings__Postgres: "Host=db;Port=5432;Database=memorandum;Username=memorandum;Password=ci-password"
+      Proxy__TrustedNetworks__0: 172.28.0.0/16
+      PasswordReset__CodePepper: ci-pepper
+      Redis__Configuration: "redis:6379,password=${REDIS_PASSWORD:?задайте REDIS_PASSWORD в infra/.env}"
+      # проверяем именно контракт HTTP, а не запуск миграций: в CI нет Postgres
+      Database__ApplyMigrationsOnStartup: "false"
+    ports:
+      - "18080:8080"
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
   web:
     image: ${WEB_IMAGE:-ghcr.io/maks-march/memorandum-web}:${IMAGE_TAG:-stable}
     restart: unless-stopped

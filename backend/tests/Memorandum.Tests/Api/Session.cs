@@ -32,6 +32,9 @@ internal sealed class Session(HttpClient client)
     /// <summary>Имитация клиента, потерявшего токен: заголовок не отправляется.</summary>
     public void ClearCsrfToken() => XsrfToken = null;
 
+    /// <summary>Подмена токена: проверяем реакцию на несовпадение с cookie.</summary>
+    public void SetRawToken(string token) => XsrfToken = token;
+
     public async Task RefreshCsrfAsync()
     {
         using var response = await client.GetAsync("/api/v1/auth/csrf");

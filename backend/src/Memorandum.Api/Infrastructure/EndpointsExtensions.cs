@@ -1,0 +1,67 @@
+using Microsoft.EntityFrameworkCore;
+using Memorandum.Infrastructure.Persistence;
+using Scalar.AspNetCore;
+
+namespace Memorandum.Api.Infrastructure;
+
+/// <summary>
+/// Карта приложения: контроллеры, справочник API и подготовка схемы БД.
+/// </summary>
+internal static class EndpointsExtensions
+{
+    public static WebApplication UseApiDocumentation(this WebApplication app)
+    {
+        var enabled = app.Configuration.GetValue("OpenApi:Enabled", app.Environment.IsDevelopment());
+
+        if (!enabled)
+            return app;
+
+        if (app.Environment.IsProduction())
+            app.Logger.LogWarning("OpenApi/Scalar включены в Production (OpenApi:Enabled=true). Не оставляйте так постоянно.");
+
+        app.MapOpenApi().WithDocumentPerVersion();
+        app.MapScalarApiReference(o => o
+            .WithTitle("Memorandum API")
+            .AddDocument("v1", "API v1", "/openapi/v1.json", isDefault: true));
+
+        return app;
+    }
+
+    /// <summary>
+    /// Схема на старте. Миграции существуют только для Postgres (§4.3 плана);
+    /// для dev-SQLite схема создаётся из модели, иначе EF сравнивал бы модель SQLite
+    /// со снимком, сгенерированным для Npgsql, и падал с pending model changes.
+    /// Пока реплика одна — допустимо; при масштабировании переносится в шаг деплоя.
+    /// </summary>
+    public static async Task ApplyMigrationsAsync(this WebApplication app)
+    {
+        if (!app.Configuration.GetValue("Database:ApplyMigrationsOnStartup", true))
+        {
+            app.Logger.LogWarning("Миграции на старте отключены (...)");
+            return;
+        }
+        await using var scope = app.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        if (db.Database.IsNpgsql())
+        {
+            var pending = (await db.Database.GetPendingMigrationsAsync()).ToArray();
+
+            if (pending.Length == 0)
+            {
+                app.Logger.LogInformation("Миграции: схема актуальна");
+                return;
+            }
+
+            app.Logger.LogInformation(
+                "Миграции: применяю {Count} — {Names}", pending.Length, string.Join(", ", pending));
+
+            await db.Database.MigrateAsync();
+            app.Logger.LogInformation("Миграции: применены");
+            return;
+        }
+
+        var created = await db.Database.EnsureCreatedAsync();
+        app.Logger.LogInformation("Схема dev-базы: {State}", created ? "создана из модели" : "актуальна");
+    }
+}

@@ -46,6 +46,8 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+    ports:
+      - "6379:6379"         
     volumes:
       - redisdata:/data
     # порт наружу не публикуем: снаружи не нужен. Для тестов на хосте:

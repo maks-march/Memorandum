@@ -17,6 +17,7 @@ public static class ErrorCodes
     public const string EmailDuplicate = "EMAIL_DUPLICATE";
     public const string PasswordTooWeak = "PASSWORD_TOO_WEAK";
     public const string TooManyRequests = "TOO_MANY_REQUESTS";
+    public const string AntiforgeryTokenInvalid = "ANTIFORGERY_TOKEN_INVALID";
 
     // организации
     public const string OrganizationInactive = "ORGANIZATION_INACTIVE";
@@ -29,6 +30,9 @@ public static class ErrorCodes
     public const string ResetTicketNotFound = "RESET_TICKET_NOT_FOUND";
     public const string ResetAttemptsExhausted = "RESET_ATTEMPTS_EXHAUSTED";
     public const string ResetTooManyRequests = "RESET_TOO_MANY_REQUESTS";
+
+    // инфраструктура
+    public const string StorageUnavailable = "STORAGE_UNAVAILABLE";
 
     // бизнес
     public const string ReferenceInUse = "REFERENCE_IN_USE";

@@ -50,6 +50,8 @@ internal static class ResultMapping
     {
         ErrorCodes.NotFound => StatusCodes.Status404NotFound,
         ErrorCodes.TooManyRequests or ErrorCodes.ResetTooManyRequests => StatusCodes.Status429TooManyRequests,
+        // Внешнее хранилище (Redis) не отвечает: это не ошибка клиента, запрос можно повторить.
+        ErrorCodes.StorageUnavailable => StatusCodes.Status503ServiceUnavailable,
         ErrorCodes.Forbidden => StatusCodes.Status403Forbidden,
         ErrorCodes.InvalidCredentials or ErrorCodes.UserInactive => StatusCodes.Status401Unauthorized,
         ErrorCodes.EmailDuplicate or ErrorCodes.ReferenceInUse
@@ -65,6 +67,7 @@ internal static class ResultMapping
         StatusCodes.Status404NotFound => "Не найдено",
         StatusCodes.Status409Conflict => "Конфликт состояния",
         StatusCodes.Status429TooManyRequests => "Слишком много запросов",
+        StatusCodes.Status503ServiceUnavailable => "Сервис временно недоступен",
         _ => "Некорректный запрос",
     };
 }
