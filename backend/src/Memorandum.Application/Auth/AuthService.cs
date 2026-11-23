@@ -16,14 +16,14 @@ public sealed class AuthService(
     IPasswordHasher passwordHasher,
     ICurrentUser currentUser,
     TimeProvider timeProvider,
-    IValidator<RegisterRequest> registerValidator,
     IValidator<LoginRequest> loginValidator) : IAuthService
 {
     public async Task<Result<AuthUserDto>> RegisterAsync(
         RegisterRequest request,
+        IValidator<RegisterRequest> registerWithOrgValidator,
         CancellationToken cancellationToken = default)
     {
-        var validation = await registerValidator.ValidateAsync(request, cancellationToken);
+        var validation = await registerWithOrgValidator.ValidateAsync(request, cancellationToken);
         if (!validation.IsValid)
             return Result<AuthUserDto>.Failure(validation.ToError());
 
@@ -61,6 +61,65 @@ public sealed class AuthService(
 
         if (organization is not null)
             await organizations.AddAsync(organization, cancellationToken);
+
+        var saved = await unitOfWork.TrySaveAsync(cancellationToken);
+        if (saved.IsFailure)
+        {
+            // Нарушение уникальности индекса по NormalizedEmail — это тот же дубликат.
+            return Result<AuthUserDto>.Failure(
+                saved.Error.Code == ErrorCodes.EmailDuplicate ? EmailDuplicate() : saved.Error);
+        }
+
+        return Result<AuthUserDto>.Success(AuthUserDto.From(user, organization?.Name));
+    }
+    
+    public async Task<Result<AuthUserDto>> RegisterAsync(
+        RegisterWithInviteRequest request, 
+        IValidator<IRegisterRequest> registerValidator,
+        CancellationToken cancellationToken = default)
+    {
+        var validation = await registerValidator.ValidateAsync(request, cancellationToken);
+        if (!validation.IsValid)
+            return Result<AuthUserDto>.Failure(validation.ToError());
+
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var author = currentUser.Name;
+
+        User user;
+        Organization? organization = null;
+
+        try
+        {
+            var normalizedEmail = EmailNormalizer.Normalize(request.Email);
+
+            if (await users.ExistsByNormalizedEmailAsync(normalizedEmail, cancellationToken))
+                return Result<AuthUserDto>.Failure(EmailDuplicate());
+
+            user = User.Create(request.Email, request.FullName, now, author);
+
+            if (!string.IsNullOrWhiteSpace(request.InviteCode))
+            {
+                organization = await organizations.GetOrganizationByInviteCode(request.InviteCode);
+                if (organization is null)
+                {
+                    return Result<AuthUserDto>.Failure(InvalidInviteCode());
+                }
+                organization.AddMember(user, OrganizationRole.Viewer, now, author);
+                user.SetActiveOrganization(organization, now, author);
+            } else
+            {
+                return Result<AuthUserDto>.Failure(InvalidInviteCode());
+            }
+        }
+        catch (DomainException exception)
+        {
+            return Result<AuthUserDto>.Failure(Error.FromDomainException(exception));
+        }
+
+        var passwordHash = passwordHasher.Hash(request.Password!);
+
+        await users.AddAsync(user, cancellationToken);
+        await credentials.AddAsync(Credential.Create(user, passwordHash, now, author), cancellationToken);
 
         var saved = await unitOfWork.TrySaveAsync(cancellationToken);
         if (saved.IsFailure)
@@ -116,4 +175,7 @@ public sealed class AuthService(
 
     private static Error EmailDuplicate() =>
         Error.Business(ErrorCodes.EmailDuplicate, "Пользователь с таким email уже зарегистрирован.");
+
+    private static Error InvalidInviteCode() =>
+        Error.Business(ErrorCodes.InvalidInviteCode, "Код-приглашение в организацию некорректен.");
 }

@@ -14,4 +14,9 @@ public interface IOrganizationRepository : IRepository<Organization>
 {
     /// <summary>Участие в организации, выбранной пользователем как текущая.</summary>
     Task<ActiveMembership?> GetActiveMembershipAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Получить организацию по ее коду-приглашению.
+    /// </summary>
+    Task<Organization?> GetOrganizationByInviteCode(string inviteCode, CancellationToken cancellationToken = default);
 }
