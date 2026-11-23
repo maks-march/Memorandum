@@ -2,6 +2,7 @@ using FluentValidation;
 using Moq;
 using Memorandum.Application.Abstractions;
 using Memorandum.Application.Auth;
+using Memorandum.Application.Invitations;
 using Memorandum.Domain.Common;
 using Memorandum.Domain.Organizations;
 using Memorandum.Domain.Users;
@@ -19,6 +20,7 @@ public sealed class AuthServiceTests
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly FakePasswordHasher _hasher = new();
     private readonly FakeCurrentUser _currentUser = new(name: "admin");
+    private readonly Mock<IInviteCodeStore> _inviteCodes = new();
 
     public AuthServiceTests()
     {
@@ -37,6 +39,7 @@ public sealed class AuthServiceTests
             _hasher,
             currentUser ?? _currentUser,
             new TestTimeProvider(new DateTimeOffset(Now, TimeSpan.Zero)),
+            _inviteCodes.Object,
             registerValidator ?? new RegisterRequestValidator(),
             loginValidator ?? new LoginRequestValidator());
 
@@ -173,12 +176,18 @@ public sealed class AuthServiceTests
     {
         Organization? storedOrganization = null;
         User? storedUser = null;
+        Credential? storedCredential = null;
         _users.Setup(u => u.ExistsByNormalizedEmailAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         _users
             .Setup(u => u.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
             .Callback<User, CancellationToken>((user, _) => storedUser = user)
             .Returns(Task.CompletedTask);
+        _credentials
+            .Setup(c => c.AddAsync(It.IsAny<Credential>(), It.IsAny<CancellationToken>()))
+            .Callback<Credential, CancellationToken>((credential, _) => storedCredential = credential)
+            .Returns(Task.CompletedTask);
+
         _organizations
             .Setup(o => o.AddAsync(It.IsAny<Organization>(), It.IsAny<CancellationToken>()))
             .Callback<Organization, CancellationToken>((organization, _) => storedOrganization = organization)
@@ -187,8 +196,81 @@ public sealed class AuthServiceTests
         await CreateService().RegisterAsync(ValidRequest("ООО"));
 
         Assert.Equal(Now, storedUser!.CreatedAt);
+        Assert.Equal(Now, storedCredential!.CreatedAt);
         Assert.Equal(Now, storedOrganization!.CreatedAt);
         Assert.Equal(Now, Assert.Single(storedOrganization.Memberships).CreatedAt);
+    }
+
+    [Fact]
+    public async Task RegisterByInvite_puts_user_into_invited_organization()
+    {
+        User? stored = null;
+        _users.Setup(u => u.ExistsByNormalizedEmailAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _users
+            .Setup(u => u.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
+            .Callback<User, CancellationToken>((user, _) => stored = user)
+            .Returns(Task.CompletedTask);
+
+        _inviteCodes
+            .Setup(s => s.RedeemAsync("ABCD2345", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new InviteCodeEntry(7, "hash", OrganizationRole.Editor, DateTimeOffset.UtcNow.AddHours(1)));
+
+        var organization = Organization.Create("ООО Ромашка", Now).WithId(7);
+        _organizations
+            .Setup(o => o.GetByIdAsync(7, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(organization);
+
+        var result = await CreateService().RegisterByInviteAsync(ValidRequest(), "ABCD2345");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("ООО Ромашка", result.Value.OrganizationName);
+        Assert.NotNull(stored);
+        // FK проставит EF после вставки: в домене связь держит навигация.
+        Assert.Same(organization, stored!.ActiveOrganization);
+        Assert.Equal(OrganizationRole.Editor, Assert.Single(organization.Memberships).Role);
+    }
+
+    [Fact]
+    public async Task RegisterByInvite_requires_code()
+    {
+        var result = await CreateService().RegisterByInviteAsync(ValidRequest(), "  ");
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCodes.InviteCodeMissing, result.Error.Code);
+        _users.VerifyNoOtherCalls();
+        _inviteCodes.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task RegisterByInvite_rejects_unknown_or_used_code()
+    {
+        _users.Setup(u => u.ExistsByNormalizedEmailAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _inviteCodes
+            .Setup(s => s.RedeemAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((InviteCodeEntry?)null);
+
+        var result = await CreateService().RegisterByInviteAsync(ValidRequest(), "ZZZZ9999");
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCodes.InviteCodeInvalid, result.Error.Code);
+        _users.Verify(u => u.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RegisterByInvite_reports_storage_failure()
+    {
+        _users.Setup(u => u.ExistsByNormalizedEmailAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _inviteCodes
+            .Setup(s => s.RedeemAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("redis down"));
+
+        var result = await CreateService().RegisterByInviteAsync(ValidRequest(), "ABCD2345");
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorCodes.StorageUnavailable, result.Error.Code);
     }
 
     [Fact]

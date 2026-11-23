@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Memorandum.Application.Abstractions;
+using Memorandum.Application.Invitations;
 using Memorandum.Application.PasswordChange;
 using Memorandum.Domain.Interfaces;
 using Memorandum.Infrastructure.Email;
@@ -51,6 +52,7 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
 
         services.AddPasswordReset(configuration);
+        services.AddInvitations(configuration);
 
         return services;
     }
@@ -78,6 +80,16 @@ public static class DependencyInjection
         services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(options));
         services.AddSingleton<IPasswordResetTicketStore, RedisPasswordResetTicketStore>();
         services.AddScoped<IEmailSender, ConsoleEmailSender>();
+    }
+
+    /// <summary>
+    /// Коды приглашения живут в Redis сутки: одноразовые, сами истекают,
+    /// таблица в БД им не нужна. Соединение то же, что у сброса пароля.
+    /// </summary>
+    private static void AddInvitations(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<InvitationOptions>(configuration.GetSection(InvitationOptions.SectionName));
+        services.AddSingleton<IInviteCodeStore, RedisInviteCodeStore>();
     }
 
     private static (string Provider, string ConnectionString) ResolveConnection(IConfiguration configuration)

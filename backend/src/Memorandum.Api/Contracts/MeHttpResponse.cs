@@ -1,4 +1,3 @@
-using Memorandum.Application.Auth;
 using Memorandum.Application.CurrentUser;
 using Memorandum.Domain.Organizations;
 
@@ -21,8 +20,4 @@ public sealed record MeHttpResponse(
     public static MeHttpResponse From(CurrentUserDto dto) =>
         new(dto.Id, dto.Email, dto.FullName, dto.Phone, dto.Position,
             dto.OrganizationId, dto.OrganizationName, dto.Role);
-
-    public static MeHttpResponse From(AuthUserDto dto) =>
-        new(dto.Id, dto.Email, dto.FullName, null, null,
-           null, dto.OrganizationName, null);
 }

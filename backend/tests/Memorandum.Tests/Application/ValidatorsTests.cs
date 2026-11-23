@@ -10,15 +10,9 @@ public sealed class ValidatorsTests
     [Fact]
     public void Register_accepts_valid_request()
     {
-        var result = _register.Validate(new RegisterRequest("a@b.ru", "password123", "Иван", "ООО"));
+        var result = _register.Validate(new RegisterRequest("a@b.ru", "password123", "Иван", null));
 
         Assert.True(result.IsValid);
-    }
-
-    [Fact]
-    public void Register_accepts_request_without_organization()
-    {
-        Assert.True(_register.Validate(new RegisterRequest("a@b.ru", "password123", "Иван", null)).IsValid);
     }
 
     [Theory]

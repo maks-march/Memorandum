@@ -8,7 +8,7 @@ namespace Memorandum.Application.Auth;
 /// Правила формы. Проверки, которым нужны данные (дубликат email), остаются в сервисе.
 /// Пароль не обрезается и не нормализуется: что пришло, то и хешируется.
 /// </summary>
-public sealed class RegisterRequestValidator : AbstractValidator<IRegisterRequest>
+public sealed class RegisterRequestValidator : AbstractValidator<RegisterRequest>
 {
     public const int PasswordMinLength = 8;
     public const int PasswordMaxLength = 128;
@@ -28,15 +28,7 @@ public sealed class RegisterRequestValidator : AbstractValidator<IRegisterReques
         RuleFor(request => request.FullName)
             .NotEmpty().WithMessage("ФИО обязательно.")
             .MaximumLength(User.FullNameMaxLength).WithMessage($"ФИО не должно быть длиннее {User.FullNameMaxLength} символов.");
-    }
-}
 
-
-public sealed class RegisterWithOrganizationValidator : AbstractValidator<RegisterRequest>
-{
-    public RegisterWithOrganizationValidator(RegisterRequestValidator innerValidator)
-    {
-        Include(innerValidator);
         RuleFor(request => request.OrgName)
             .MaximumLength(Organization.NameMaxLength)
             .WithMessage($"Название организации не должно быть длиннее {Organization.NameMaxLength} символов.")
