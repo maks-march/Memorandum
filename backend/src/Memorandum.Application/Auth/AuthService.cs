@@ -1,6 +1,7 @@
 using FluentValidation;
 using Memorandum.Application.Abstractions;
 using Memorandum.Application.Common;
+using Memorandum.Application.Invitations;
 using Memorandum.Domain.Common;
 using Memorandum.Domain.Interfaces;
 using Memorandum.Domain.Organizations;
@@ -16,14 +17,15 @@ public sealed class AuthService(
     IPasswordHasher passwordHasher,
     ICurrentUser currentUser,
     TimeProvider timeProvider,
+    IInviteCodeStore inviteCodes,
+    IValidator<RegisterRequest> registerValidator,
     IValidator<LoginRequest> loginValidator) : IAuthService
 {
     public async Task<Result<AuthUserDto>> RegisterAsync(
         RegisterRequest request,
-        IValidator<RegisterRequest> registerWithOrgValidator,
         CancellationToken cancellationToken = default)
     {
-        var validation = await registerWithOrgValidator.ValidateAsync(request, cancellationToken);
+        var validation = await registerValidator.ValidateAsync(request, cancellationToken);
         if (!validation.IsValid)
             return Result<AuthUserDto>.Failure(validation.ToError());
 
@@ -42,6 +44,8 @@ public sealed class AuthService(
 
             user = User.Create(request.Email, request.FullName, now, author);
 
+            // Создатель организации — единственный, кто получает её без кода
+            // приглашения: он и есть источник кодов для остальных сотрудников.
             if (!string.IsNullOrWhiteSpace(request.OrgName))
             {
                 organization = Organization.Create(request.OrgName, now, author);
@@ -72,21 +76,25 @@ public sealed class AuthService(
 
         return Result<AuthUserDto>.Success(AuthUserDto.From(user, organization?.Name));
     }
-    
-    public async Task<Result<AuthUserDto>> RegisterAsync(
-        RegisterWithInviteRequest request, 
-        IValidator<IRegisterRequest> registerValidator,
+
+    public async Task<Result<AuthUserDto>> RegisterByInviteAsync(
+        RegisterRequest request,
+        string? code,
         CancellationToken cancellationToken = default)
     {
         var validation = await registerValidator.ValidateAsync(request, cancellationToken);
         if (!validation.IsValid)
             return Result<AuthUserDto>.Failure(validation.ToError());
 
+        if (string.IsNullOrWhiteSpace(code))
+            return Result<AuthUserDto>.Failure(Error.Business(
+                ErrorCodes.InviteCodeMissing,
+                "Укажите код приглашения: без него регистрация сотрудника невозможна."));
+
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var author = currentUser.Name;
 
         User user;
-        Organization? organization = null;
 
         try
         {
@@ -96,20 +104,43 @@ public sealed class AuthService(
                 return Result<AuthUserDto>.Failure(EmailDuplicate());
 
             user = User.Create(request.Email, request.FullName, now, author);
+        }
+        catch (DomainException exception)
+        {
+            return Result<AuthUserDto>.Failure(Error.FromDomainException(exception));
+        }
 
-            if (!string.IsNullOrWhiteSpace(request.InviteCode))
-            {
-                organization = await organizations.GetOrganizationByInviteCode(request.InviteCode);
-                if (organization is null)
-                {
-                    return Result<AuthUserDto>.Failure(InvalidInviteCode());
-                }
-                organization.AddMember(user, OrganizationRole.Viewer, now, author);
-                user.SetActiveOrganization(organization, now, author);
-            } else
-            {
-                return Result<AuthUserDto>.Failure(InvalidInviteCode());
-            }
+        // Код гасим до создания пользователя: он одноразовый, и «съеденный»
+        // код не должен оставаться действительным при сбое сохранения.
+        InviteCodeEntry? invite;
+
+        try
+        {
+            invite = await inviteCodes.RedeemAsync(code, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return Result<AuthUserDto>.Failure(Error.Business(
+                ErrorCodes.StorageUnavailable,
+                "Сервис временно недоступен: не удалось проверить код приглашения."));
+        }
+
+        if (invite is null)
+            return Result<AuthUserDto>.Failure(Error.Business(
+                ErrorCodes.InviteCodeInvalid,
+                "Код приглашения недействителен, истёк или уже использован."));
+
+        var invitedTo = await organizations.GetByIdAsync(invite.OrganizationId, cancellationToken);
+
+        if (invitedTo is null)
+            return Result<AuthUserDto>.Failure(Error.NotFound("Организация", invite.OrganizationId));
+
+        try
+        {
+            // Одна организация у пользователя: если он уже где-то состоит,
+            // приглашение не должно молча перевести его в другую.
+            invitedTo.AddMember(user, invite.Role, now, author);
+            user.SetActiveOrganization(invitedTo, now, author);
         }
         catch (DomainException exception)
         {
@@ -124,12 +155,11 @@ public sealed class AuthService(
         var saved = await unitOfWork.TrySaveAsync(cancellationToken);
         if (saved.IsFailure)
         {
-            // Нарушение уникальности индекса по NormalizedEmail — это тот же дубликат.
             return Result<AuthUserDto>.Failure(
                 saved.Error.Code == ErrorCodes.EmailDuplicate ? EmailDuplicate() : saved.Error);
         }
 
-        return Result<AuthUserDto>.Success(AuthUserDto.From(user, organization?.Name));
+        return Result<AuthUserDto>.Success(AuthUserDto.From(user, invitedTo.Name));
     }
 
     public async Task<Result<LoginOutcome>> LoginAsync(
@@ -175,7 +205,4 @@ public sealed class AuthService(
 
     private static Error EmailDuplicate() =>
         Error.Business(ErrorCodes.EmailDuplicate, "Пользователь с таким email уже зарегистрирован.");
-
-    private static Error InvalidInviteCode() =>
-        Error.Business(ErrorCodes.InvalidInviteCode, "Код-приглашение в организацию некорректен.");
 }

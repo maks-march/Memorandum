@@ -22,13 +22,18 @@ public static class ErrorCodes
     // организации
     public const string OrganizationInactive = "ORGANIZATION_INACTIVE";
     public const string MemberAlreadyExists = "MEMBER_ALREADY_EXISTS";
-    public const string InvalidInviteCode = "INVALID_INVITE_CODE";
     public const string LastOrgAdminRequired = "LAST_ORG_ADMIN_REQUIRED";
 
     // проекты
     public const string ProjectArchived = "PROJECT_ARCHIVED";
     public const string ProjectMemberRequired = "PROJECT_MEMBER_REQUIRED";
     public const string OrganizationMismatch = "ORGANIZATION_MISMATCH";
+
+    // приглашения
+    public const string InviteCodeInvalid = "INVITE_CODE_INVALID";
+    public const string InviteCodeExpired = "INVITE_CODE_EXPIRED";
+    public const string InviteCodeMissing = "INVITE_CODE_MISSING";
+    public const string InviteTooManyAttempts = "INVITE_TOO_MANY_ATTEMPTS";
 
     // смена пароля
     public const string ResetCodeInvalid = "RESET_CODE_INVALID";

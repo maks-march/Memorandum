@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using Memorandum.Domain.Common;
 using Memorandum.Domain.Users;
 
@@ -12,7 +11,6 @@ public sealed class Organization : AuditableEntity
     public const int KppMaxLength = 9;
     public const int OgrnMaxLength = 15;
     public const int AddressMaxLength = 500;
-    private const int InviteCodeByteLength = 9;
 
     private readonly List<OrganizationMembership> _memberships = [];
 
@@ -35,8 +33,6 @@ public sealed class Organization : AuditableEntity
 
     public bool IsActive { get; private set; }
 
-    public string InviteCode { get; private set; } = string.Empty;
-
     public IReadOnlyCollection<OrganizationMembership> Memberships => _memberships;
 
     public static Organization Create(string? name, DateTime utcNow, string? createdBy = null)
@@ -45,8 +41,8 @@ public sealed class Organization : AuditableEntity
         {
             Name = Guard.Required(name, "Название организации", NameMaxLength),
             IsActive = true,
-            InviteCode = Generator.GenerateCode(InviteCodeByteLength)
         };
+
         organization.MarkCreated(utcNow, createdBy);
         return organization;
     }
@@ -55,11 +51,6 @@ public sealed class Organization : AuditableEntity
     {
         Name = Guard.Required(name, "Название организации", NameMaxLength);
         Touch(utcNow, updatedBy);
-    }
-
-    public bool CheckInviteCode(string inviteCode)
-    {
-        return InviteCode.Equals(inviteCode);
     }
 
     /// <summary>
@@ -146,6 +137,13 @@ public sealed class Organization : AuditableEntity
         IsActive = false;
         Touch(utcNow, updatedBy);
     }
+
+    /// <summary>
+    /// Роль, которую можно выдать по коду приглашения. Администратором делает
+    /// только действующий администратор организации, а не всякий, кто знает код.
+    /// </summary>
+    public static bool CanInviteWithRole(OrganizationRole role) =>
+        role is OrganizationRole.Editor or OrganizationRole.Viewer;
 
     /// <summary>Есть ли у пользователя активное участие — по нему строится изоляция данных.</summary>
     public bool HasActiveMember(long userId) =>
