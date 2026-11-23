@@ -26,6 +26,11 @@ public sealed class OrganizationMembershipConfiguration : IEntityTypeConfigurati
             .HasConversion<string>()
             .IsRequired();
 
+        // Должность хранится в участии: она принадлежит паре «сотрудник + организация».
+        builder.Property(membership => membership.Position)
+            .HasColumnName("position")
+            .HasMaxLength(OrganizationMembership.PositionMaxLength);
+
         builder.Property(membership => membership.IsActive)
             .HasColumnName("is_active")
             .IsRequired();

@@ -43,7 +43,7 @@ internal sealed class ApiClientErrorResultFilter : IAlwaysRunResultFilter, IOrde
 
         var detail = (noHeader, noCookie) switch
         {
-            (true, _) => "Токен не передан: получите его через GET /api/v1/auth/csrf и отправьте в заголовке X-XSRF-TOKEN.",
+            (true, true) => "Токен не передан: получите cookie через GET /api/v1/auth/csrf — дальше она отправляется с запросом сама.",
             (_, true) => "Cookie XSRF-TOKEN отсутствует или истекла: перевыпустите токен через GET /api/v1/auth/csrf.",
             _ => "Токен не совпадает с cookie XSRF-TOKEN: перевыпустите его через GET /api/v1/auth/csrf.",
         };

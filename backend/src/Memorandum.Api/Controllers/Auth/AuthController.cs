@@ -52,7 +52,8 @@ public sealed class AuthController(
             return result.Error.ToProblem(this);
 
         var body = new MeHttpResponse(
-            result.Value.Id, result.Value.Email, result.Value.FullName, null, null, null);
+            result.Value.Id, result.Value.Email, result.Value.FullName,
+            Position: null, Phone: null, OrganizationId: null, OrganizationName: null, Role: null);
 
         // Location ведёт на профиль, хотя сам профиль вернётся только после входа.
         return Created($"/api/v1/me", body);

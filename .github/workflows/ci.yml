@@ -150,24 +150,21 @@ jobs:
           docker build -f infra/api.Dockerfile -t memorandum-api:ci .
           docker build -f infra/web.Dockerfile -t memorandum-web:ci .
 
-      # Приложение на старте применяет миграции, то есть ходит в Postgres.
-      # Поэтому образ проверяем в compose-стеке (профиль ci), а не отдельным
-      # docker run: там есть и db, и redis, и та же сеть, что в прод-стеке.
+      # Проверяем артефакт: образ должен стартовать в прод-конфиге и отвечать.
+      # Postgres для этого не нужен — у сервиса api-ci миграции на старте
+      # выключены (Database__ApplyMigrationsOnStartup=false), иначе старт
+      # зависел бы от готовности базы.
       - name: Запустить api-образ в прод-конфиге
         run: |
           set -eu
-          # Имя контейнера фиксированное: подчищаем возможный остаток от прошлого
-          # прогона, иначе docker откажется создавать api-ci.
           docker rm -f api-ci >/dev/null 2>&1 || true
 
-          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env \
-            up -d db redis
+          # Без --rm: удалённый контейнер не отдаст логи, если упал на старте.
           API_IMAGE=memorandum-api IMAGE_TAG=ci \
             docker compose -f infra/docker-compose.prod.yml --env-file infra/.env \
-            run --rm -d --name api-ci --service-ports api-ci
+            run -d --no-deps --name api-ci --service-ports api-ci
 
       - name: api-ответ отвечает на health
-        id: health
         run: |
           set -eu
           up=0
@@ -194,7 +191,6 @@ jobs:
           body="$(curl -fsS http://localhost:18080/api/health)"
           echo "$body"
           echo "$body" | grep -q '"environment":"Production"'
-          docker rm -f api-ci
 
       - name: api-образ без AllowedHosts падает (fail-fast на артефакте)
         run: |
@@ -218,7 +214,7 @@ jobs:
           fi
           echo "контейнер завершился с ошибкой, как и требовалось"
 
-      - name: Убрать контейнеры инфраструктуры
+      - name: Убрать контейнеры
         if: always()
         run: |
           docker rm -f api-ci || true

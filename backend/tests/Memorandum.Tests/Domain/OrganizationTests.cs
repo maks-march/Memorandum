@@ -82,6 +82,28 @@ public sealed class OrganizationTests
     }
 
     [Fact]
+    public void Position_belongs_to_membership_not_to_user()
+    {
+        var organization = Organization.Create("ООО «Проект»", TestHelpers.Now);
+        var user = NewUser(1);
+
+        var membership = organization.AddMember(
+            user, OrganizationRole.Editor, TestHelpers.Now, position: "  Главный инженер  ");
+
+        Assert.Equal("Главный инженер", membership.Position);
+
+        organization.ChangePosition(1, "ГИП", TestHelpers.Later);
+        Assert.Equal("ГИП", membership.Position);
+
+        // Повторное добавление обновляет должность в той же записи участия.
+        organization.RemoveMember(1, TestHelpers.Later);
+        var returned = organization.AddMember(
+            user, OrganizationRole.Editor, TestHelpers.Later, position: "Ведущий инженер");
+        Assert.Same(membership, returned);
+        Assert.Equal("Ведущий инженер", returned.Position);
+    }
+
+    [Fact]
     public void AddMember_rejects_duplicate_active_member()
     {
         var organization = NewOrganization();

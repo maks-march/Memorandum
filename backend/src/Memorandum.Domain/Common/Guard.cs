@@ -43,4 +43,24 @@ public static class Guard
 
         return value;
     }
+
+    /// <summary>Дата не может быть в будущем: домен живёт по UTC, сравнение строгое.</summary>
+    public static DateTime NotInFuture(DateTime value, string fieldName, DateTime utcNow)
+    {
+        if (value > utcNow)
+            throw new ValidationException(
+                ErrorCodes.Validation,
+                $"Поле «{fieldName}» не может быть в будущем.");
+
+        return value;
+    }
+
+    /// <summary>Дата окончания не раньше даты начала.</summary>
+    public static void DateRange(DateTime from, DateTime? to, string fieldName)
+    {
+        if (to is not null && to < from)
+            throw new ValidationException(
+                ErrorCodes.Validation,
+                $"Поле «{fieldName}»: дата окончания раньше даты начала.");
+    }
 }

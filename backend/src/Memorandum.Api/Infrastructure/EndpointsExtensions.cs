@@ -35,11 +35,14 @@ internal static class EndpointsExtensions
     /// </summary>
     public static async Task ApplyMigrationsAsync(this WebApplication app)
     {
+        // Схема нужна приложению, но не всегда нужна проверяющему его стенду:
+        // в CI образ поднимается без Postgres (Database__ApplyMigrationsOnStartup=false).
         if (!app.Configuration.GetValue("Database:ApplyMigrationsOnStartup", true))
         {
-            app.Logger.LogWarning("Миграции на старте отключены (...)");
+            app.Logger.LogWarning("Миграции на старте отключены (Database:ApplyMigrationsOnStartup=false)");
             return;
         }
+
         await using var scope = app.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
