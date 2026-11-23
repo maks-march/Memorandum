@@ -40,7 +40,16 @@ public sealed class PostgresTestDatabase : IAsyncDisposable
 
         await using (var admin = new NpgsqlConnection(adminConnectionString))
         {
-            await admin.OpenAsync();
+            try
+            {
+                await admin.OpenAsync();
+            }
+            catch (NpgsqlException exception)
+            {
+                // Одна внятная ошибка вместо одинакового падения в каждом тесте.
+                throw PostgresTestServer.Unavailable(exception);
+            }
+
             await using var create = new NpgsqlCommand($"CREATE DATABASE \"{name}\"", admin);
             await create.ExecuteNonQueryAsync();
         }

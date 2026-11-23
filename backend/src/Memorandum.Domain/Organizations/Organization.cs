@@ -13,6 +13,7 @@ public sealed class Organization : AuditableEntity
     public const int AddressMaxLength = 500;
 
     private readonly List<OrganizationMembership> _memberships = [];
+    private readonly List<OrganizationInvitation> _invitations = [];
 
     private Organization()
     {
@@ -34,6 +35,9 @@ public sealed class Organization : AuditableEntity
     public bool IsActive { get; private set; }
 
     public IReadOnlyCollection<OrganizationMembership> Memberships => _memberships;
+
+    /// <summary>Приглашения организации: ожидающие, принятые и отозванные.</summary>
+    public IReadOnlyCollection<OrganizationInvitation> Invitations => _invitations;
 
     public static Organization Create(string? name, DateTime utcNow, string? createdBy = null)
     {
@@ -144,6 +148,75 @@ public sealed class Organization : AuditableEntity
     /// </summary>
     public static bool CanInviteWithRole(OrganizationRole role) =>
         role is OrganizationRole.Editor or OrganizationRole.Viewer;
+
+    /// <summary>
+    /// Приглашение сотрудника по email. Одно ожидающее приглашение на адрес:
+    /// повторная отправка обновляет роль и срок, а не плодит записи.
+    /// </summary>
+    public OrganizationInvitation Invite(
+        string? email,
+        OrganizationRole role,
+        DateTime expiresAt,
+        DateTime utcNow,
+        string? createdBy = null)
+    {
+        if (!IsActive)
+            throw new ConflictException(ErrorCodes.OrganizationInactive, "Организация деактивирована.");
+
+        if (!CanInviteWithRole(role))
+            throw new ValidationException(
+                ErrorCodes.Validation,
+                "По приглашению можно выдать роль Editor или Viewer.");
+
+        var normalized = EmailNormalizer.Normalize(Guard.Required(email, "Email", OrganizationInvitation.EmailMaxLength));
+
+        if (_invitations.FirstOrDefault(invitation =>
+                invitation.NormalizedEmail == normalized && invitation.IsPending) is { } pending)
+        {
+            pending.Extend(expiresAt, utcNow, createdBy);
+            return pending;
+        }
+
+        var created = new OrganizationInvitation(email!, role, expiresAt, utcNow, createdBy);
+        _invitations.Add(created);
+        return created;
+    }
+
+    /// <summary>Приглашение принято: пользователь становится участником с ролью из приглашения.</summary>
+    public OrganizationMembership AcceptInvitation(
+        string? email,
+        User user,
+        DateTime utcNow,
+        string? updatedBy = null)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        var invitation = FindPendingInvitation(email);
+        invitation.Accept(user, utcNow, updatedBy);
+
+        return AddMember(user, invitation.Role, utcNow, updatedBy);
+    }
+
+    public void RevokeInvitation(string? email, DateTime utcNow, string? updatedBy = null) =>
+        FindPendingInvitation(email).Revoke(utcNow, updatedBy);
+
+    /// <summary>Есть ли действующее приглашение на адрес.</summary>
+    public bool HasPendingInvitation(string? email)
+    {
+        var normalized = EmailNormalizer.Normalize(email);
+
+        return _invitations.Any(invitation =>
+            invitation.IsPending && invitation.NormalizedEmail == normalized);
+    }
+
+    private OrganizationInvitation FindPendingInvitation(string? email)
+    {
+        var normalized = EmailNormalizer.Normalize(Guard.Required(email, "Email", OrganizationInvitation.EmailMaxLength));
+
+        return _invitations.FirstOrDefault(invitation =>
+                   invitation.IsPending && invitation.NormalizedEmail == normalized)
+               ?? throw new NotFoundException(ErrorCodes.NotFound, "Приглашение не найдено.");
+    }
 
     /// <summary>Есть ли у пользователя активное участие — по нему строится изоляция данных.</summary>
     public bool HasActiveMember(long userId) =>

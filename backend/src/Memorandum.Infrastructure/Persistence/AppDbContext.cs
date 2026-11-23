@@ -23,6 +23,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
 
+    public DbSet<ProjectDocument> ProjectDocuments => Set<ProjectDocument>();
+
+    public DbSet<DocumentSection> DocumentSections => Set<DocumentSection>();
+
+    public DbSet<OrganizationInvitation> OrganizationInvitations => Set<OrganizationInvitation>();
+
     /// <summary>Ключи Data Protection: cookie и анти-CSRF токены переживают рестарт.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
