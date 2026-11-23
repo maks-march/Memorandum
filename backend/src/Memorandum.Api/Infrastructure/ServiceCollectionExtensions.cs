@@ -77,15 +77,33 @@ internal static class ServiceCollectionExtensions
 
     public const string DevCorsPolicy = "dev";
 
+    /// <summary>Cookie с антифоржери-токеном: отправляется браузером сама, руками её не дублируем.</summary>
+    public const string AntiforgeryCookieName = "XSRF-TOKEN";
+
     /// <summary>
-    /// Имена cookie и заголовка взяты из умолчаний axios: SPA читает токен и шлёт его
-    /// в <c>X-XSRF-TOKEN</c> без настройки.
+    /// Антифоржери на cookie вместо заголовка.
+    /// <para>
+    /// ASP.NET умеет принимать токен из поля формы или заголовка, поэтому пара
+    /// «cookie + заголовок» до сих пор была единственным способом. Сейчас токен
+    /// едет только в cookie: клиенту не нужно читать его из ответа и подставлять
+    /// в <c>X-XSRF-TOKEN</c>. Сравнение «двойная отправка» при этом сохраняется:
+    /// cookie читается на том же origin, где выставляется, а сторонний сайт её
+    /// отправить не может (SameSite=Lax + отсутствие CORS в Production).
+    /// </para>
+    /// <para>
+    /// Компромисс: защита ослабевает до SameSite — при XSS токен тоже доступен.
+    /// Поэтому <c>HttpOnly</c> остаётся выключенным (если токен читает фронт),
+    /// а <c>Secure</c> и <c>SameSite=Lax</c> обязательны.
+    /// </para>
     /// </summary>
     private static void ConfigureAntiforgery(AntiforgeryOptions options, IWebHostEnvironment environment)
     {
-        options.HeaderName = "X-XSRF-TOKEN";
-        options.Cookie.Name = "XSRF-TOKEN";
-        options.Cookie.HttpOnly = false;               // SPA должна прочитать токен
+        // Имя заголовка штатное: его подставляет middleware AntiforgeryCookieMiddleware,
+        // поэтому фронту не нужно знать про токен вообще.
+        options.HeaderName = AntiforgeryCookieMiddleware.HeaderName;
+        options.FormFieldName = "__RequestVerificationToken";
+        options.Cookie.Name = AntiforgeryCookieName;
+        options.Cookie.HttpOnly = false;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.SecurePolicy = environment.IsDevelopment()
             ? CookieSecurePolicy.SameAsRequest          // dev идёт по http

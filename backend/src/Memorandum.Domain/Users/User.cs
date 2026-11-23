@@ -8,6 +8,7 @@ public sealed class User : AuditableEntity
 {
     public const int EmailMaxLength = 254;
     public const int FullNameMaxLength = 200;
+    public const int PhoneMaxLength = 20;
 
     private User()
     {
@@ -19,6 +20,9 @@ public sealed class User : AuditableEntity
     public string NormalizedEmail { get; private set; } = null!;
 
     public string FullName { get; private set; } = null!;
+
+    /// <summary>Телефон для связи; формат свободный, проверяется только длина.</summary>
+    public string? Phone { get; private set; }
 
     public bool IsActive { get; private set; }
 
@@ -52,6 +56,14 @@ public sealed class User : AuditableEntity
     public void Rename(string? fullName, DateTime utcNow, string? updatedBy = null)
     {
         FullName = Guard.Required(fullName, "ФИО", FullNameMaxLength);
+        Touch(utcNow, updatedBy);
+    }
+
+    /// <summary>Личные данные профиля. Email меняется отдельно: по нему вход и уникальный индекс.</summary>
+    public void ChangeProfile(string? fullName, string? phone, DateTime utcNow, string? updatedBy = null)
+    {
+        FullName = Guard.Required(fullName, "ФИО", FullNameMaxLength);
+        Phone = Guard.Optional(phone, "Телефон", PhoneMaxLength);
         Touch(utcNow, updatedBy);
     }
 

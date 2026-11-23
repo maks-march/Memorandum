@@ -5,6 +5,8 @@ using Memorandum.Application.PasswordChange;
 using Memorandum.Application.PasswordChange.Models;
 using Memorandum.Application.PasswordChange.Validators;
 using Memorandum.Application.CurrentUser;
+using Memorandum.Application.CurrentUser.Models;
+using Memorandum.Application.CurrentUser.Validators;
 
 namespace Memorandum.Application;
 
@@ -22,6 +24,7 @@ public static class DependencyInjection
 
         services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
         services.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>();
+        services.AddScoped<IValidator<UpdateProfileRequest>, UpdateProfileRequestValidator>();
         services.AddScoped<IValidator<RequestPasswordChangeCodeRequest>, RequestPasswordChangeCodeRequestValidator>();
         services.AddScoped<IValidator<(long UserId, string? Code, string? NewPassword)>, ConfirmPasswordChangeRequestValidator>();
 

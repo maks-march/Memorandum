@@ -30,6 +30,10 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasMaxLength(User.FullNameMaxLength)
             .IsRequired();
 
+        builder.Property(user => user.Phone)
+            .HasColumnName("phone")
+            .HasMaxLength(User.PhoneMaxLength);
+
         builder.Property(user => user.IsActive)
             .HasColumnName("is_active")
             .IsRequired();

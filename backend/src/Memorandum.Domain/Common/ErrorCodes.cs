@@ -24,6 +24,11 @@ public static class ErrorCodes
     public const string MemberAlreadyExists = "MEMBER_ALREADY_EXISTS";
     public const string LastOrgAdminRequired = "LAST_ORG_ADMIN_REQUIRED";
 
+    // проекты
+    public const string ProjectArchived = "PROJECT_ARCHIVED";
+    public const string ProjectMemberRequired = "PROJECT_MEMBER_REQUIRED";
+    public const string OrganizationMismatch = "ORGANIZATION_MISMATCH";
+
     // смена пароля
     public const string ResetCodeInvalid = "RESET_CODE_INVALID";
     public const string ResetCodeExpired = "RESET_CODE_EXPIRED";

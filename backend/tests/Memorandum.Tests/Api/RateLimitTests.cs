@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Memorandum.Api.Contracts;
+using Memorandum.Tests.Infrastructure;
 
 namespace Memorandum.Tests.Infrastructure.Api;
 
@@ -13,11 +14,17 @@ public sealed class RateLimitTests : IAsyncLifetime
 {
     private MemorandumApiFactory _factory = null!;
     private HttpClient _client = null!;
+    private SqliteConnectionHolder _database = null!;
 
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
     {
+        // Своя база в памяти: без неё фабрика взяла бы файл app.db из appsettings,
+        // а он живёт между прогонами и отстаёт от модели.
+        _database = await SqliteConnectionHolder.CreateAsync();
+
         _factory = new MemorandumApiFactory
         {
+            Database = _database.Connection,
             Settings = new()
             {
                 ["Database:Provider"] = "Sqlite",
@@ -27,14 +34,13 @@ public sealed class RateLimitTests : IAsyncLifetime
         };
 
         _client = _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
-
-        return Task.CompletedTask;
     }
 
     public async Task DisposeAsync()
     {
         _client.Dispose();
         await _factory.DisposeAsync();
+        await _database.DisposeAsync();
     }
 
     [Fact]

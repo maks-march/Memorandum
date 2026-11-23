@@ -3,10 +3,14 @@ using Memorandum.Domain.Users;
 
 namespace Memorandum.Domain.Organizations;
 
-/// <summary>Организация — агрегат, владеющий участием пользователей.</summary>
+/// <summary>Проектная организация или другая организация, использующая сервис.</summary>
 public sealed class Organization : AuditableEntity
 {
     public const int NameMaxLength = 200;
+    public const int InnMaxLength = 12;
+    public const int KppMaxLength = 9;
+    public const int OgrnMaxLength = 15;
+    public const int AddressMaxLength = 500;
 
     private readonly List<OrganizationMembership> _memberships = [];
 
@@ -15,6 +19,17 @@ public sealed class Organization : AuditableEntity
     }
 
     public string Name { get; private set; } = null!;
+
+    /// <summary>ИНН: 10 цифр у юридического лица, 12 у индивидуального предпринимателя.</summary>
+    public string? Inn { get; private set; }
+
+    /// <summary>КПП: 9 цифр у юридического лица; у ИП отсутствует.</summary>
+    public string? Kpp { get; private set; }
+
+    /// <summary>ОГРН: 13 цифр у юридического лица, 15 у ИП.</summary>
+    public string? Ogrn { get; private set; }
+
+    public string? Address { get; private set; }
 
     public bool IsActive { get; private set; }
 
@@ -39,10 +54,34 @@ public sealed class Organization : AuditableEntity
     }
 
     /// <summary>
-    /// Добавляет участника. 
+    /// Реквизиты. Каждое поле проверяется отдельно: ИНН/КПП/ОГРН — только цифры
+    /// установленной длины, иначе документ не пройдёт проверку в экспертизе.
+    /// </summary>
+    public void ChangeDetails(
+        string? inn,
+        string? kpp,
+        string? ogrn,
+        string? address,
+        DateTime utcNow,
+        string? updatedBy = null)
+    {
+        Inn = Guard.Optional(Digits(inn, "ИНН", InnMaxLength, [10, 12]), "ИНН", InnMaxLength);
+        Kpp = Guard.Optional(Digits(kpp, "КПП", KppMaxLength, [9]), "КПП", KppMaxLength);
+        Ogrn = Guard.Optional(Digits(ogrn, "ОГРН", OgrnMaxLength, [13, 15]), "ОГРН", OgrnMaxLength);
+        Address = Guard.Optional(address, "Адрес", AddressMaxLength);
+        Touch(utcNow, updatedBy);
+    }
+
+    /// <summary>
+    /// Добавляет участника.
     /// Ранее исключённый пользователь возвращается с новой ролью — второй записи на того же пользователя не появляется.
     /// </summary>
-    public OrganizationMembership AddMember(User user, OrganizationRole role, DateTime utcNow, string? createdBy = null)
+    public OrganizationMembership AddMember(
+        User user,
+        OrganizationRole role,
+        DateTime utcNow,
+        string? createdBy = null,
+        string? position = null)
     {
         ArgumentNullException.ThrowIfNull(user);
 
@@ -58,10 +97,12 @@ public sealed class Organization : AuditableEntity
         if (existing is not null)
         {
             existing.Reactivate(role, utcNow, createdBy);
+            existing.ChangePosition(position, utcNow, createdBy);
             return existing;
         }
 
         var membership = new OrganizationMembership(user, role, utcNow, createdBy);
+        membership.ChangePosition(position, utcNow, createdBy);
         _memberships.Add(membership);
         return membership;
     }
@@ -78,6 +119,10 @@ public sealed class Organization : AuditableEntity
         membership.ChangeRole(role, utcNow, updatedBy);
     }
 
+    /// <summary>Должность сотрудника видна только в контексте организации, поэтому меняется через неё.</summary>
+    public void ChangePosition(long userId, string? position, DateTime utcNow, string? updatedBy = null) =>
+        FindActive(userId).ChangePosition(position, utcNow, updatedBy);
+
     /// <summary>Исключает пользователя; последнего администратора исключить нельзя.</summary>
     public void RemoveMember(long userId, DateTime utcNow, string? updatedBy = null)
     {
@@ -92,6 +137,10 @@ public sealed class Organization : AuditableEntity
         IsActive = false;
         Touch(utcNow, updatedBy);
     }
+
+    /// <summary>Есть ли у пользователя активное участие — по нему строится изоляция данных.</summary>
+    public bool HasActiveMember(long userId) =>
+        userId > 0 && _memberships.Any(membership => membership.IsActive && membership.UserId == userId);
 
     private OrganizationMembership FindActive(long userId)
     {
@@ -109,5 +158,21 @@ public sealed class Organization : AuditableEntity
 
         if (membership.Role == OrganizationRole.OrgAdmin && admins == 1)
             throw new ConflictException(ErrorCodes.LastOrgAdminRequired, message);
+    }
+
+    /// <summary>Реквизит: только цифры и одна из допустимых длин. Пустое значение — <c>null</c>.</summary>
+    private static string? Digits(string? value, string fieldName, int maxLength, int[] lengths)
+    {
+        var trimmed = Guard.Optional(value, fieldName, maxLength);
+
+        if (trimmed is null)
+            return null;
+
+        if (!trimmed.All(char.IsAsciiDigit) || !lengths.Contains(trimmed.Length))
+            throw new ValidationException(
+                ErrorCodes.Validation,
+                $"Поле «{fieldName}» должно состоять из {string.Join(" или ", lengths)} цифр.");
+
+        return trimmed;
     }
 }

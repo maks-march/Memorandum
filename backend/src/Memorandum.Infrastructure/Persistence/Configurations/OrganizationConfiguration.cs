@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Memorandum.Domain.Organizations;
 
@@ -15,6 +16,22 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
             .HasColumnName("name")
             .HasMaxLength(Organization.NameMaxLength)
             .IsRequired();
+
+        builder.Property(organization => organization.Inn)
+            .HasColumnName("inn")
+            .HasMaxLength(Organization.InnMaxLength);
+
+        builder.Property(organization => organization.Kpp)
+            .HasColumnName("kpp")
+            .HasMaxLength(Organization.KppMaxLength);
+
+        builder.Property(organization => organization.Ogrn)
+            .HasColumnName("ogrn")
+            .HasMaxLength(Organization.OgrnMaxLength);
+
+        builder.Property(organization => organization.Address)
+            .HasColumnName("address")
+            .HasMaxLength(Organization.AddressMaxLength);
 
         builder.Property(organization => organization.IsActive)
             .HasColumnName("is_active")

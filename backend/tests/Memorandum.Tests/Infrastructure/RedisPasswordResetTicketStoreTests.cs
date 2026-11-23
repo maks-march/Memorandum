@@ -7,7 +7,8 @@ using Memorandum.Infrastructure.Redis;
 namespace Memorandum.Tests.Infrastructure;
 
 /// <summary>
-/// Тесты хранилища на живом Redis.
+/// Тесты хранилища на живом Redis. База чистится после каждого теста, поэтому
+/// набор не должен идти параллельно с другими Redis-тестами: см. xunit.runner.json.
 /// </summary>
 [Trait("Category", "Redis")]
 public sealed class RedisPasswordResetTicketStoreTests : IAsyncLifetime

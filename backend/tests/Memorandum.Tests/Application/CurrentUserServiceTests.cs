@@ -1,6 +1,10 @@
+using FluentValidation;
 using Moq;
 using Memorandum.Application.Abstractions;
 using Memorandum.Application.CurrentUser;
+using Memorandum.Application.CurrentUser.Models;
+using Memorandum.Application.CurrentUser.Validators;
+using Memorandum.Domain.Interfaces;
 using Memorandum.Domain.Common;
 using Memorandum.Domain.Organizations;
 using Memorandum.Domain.Users;
@@ -11,9 +15,17 @@ public sealed class CurrentUserServiceTests
 {
     private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<IOrganizationRepository> _organizations = new();
+    private readonly Mock<IUnitOfWork> _unitOfWork = new();
+    private readonly IValidator<UpdateProfileRequest> _validator = new UpdateProfileRequestValidator();
 
     private CurrentUserService CreateService(ICurrentUser currentUser) =>
-        new(_users.Object, _organizations.Object, currentUser);
+        new(
+            _users.Object,
+            _organizations.Object,
+            _unitOfWork.Object,
+            currentUser,
+            new TestTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)),
+            _validator);
 
     [Fact]
     public async Task Get_rejects_anonymous_request()
@@ -75,7 +87,7 @@ public sealed class CurrentUserServiceTests
         _users.Setup(u => u.GetByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         _organizations
             .Setup(o => o.GetActiveMembershipAsync(5, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ActiveMembership(9, "ООО Ромашка", OrganizationRole.OrgAdmin));
+            .ReturnsAsync(new ActiveMembership(9, "ООО Ромашка", OrganizationRole.OrgAdmin, "Инженер"));
 
         var result = await CreateService(new FakeCurrentUser(5, "Иван")).GetAsync();
 

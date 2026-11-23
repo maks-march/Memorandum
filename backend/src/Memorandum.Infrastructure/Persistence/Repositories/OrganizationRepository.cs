@@ -13,7 +13,7 @@ public sealed class OrganizationRepository(AppDbContext db) : EfRepository<Organ
          join membership in Db.Memberships.AsNoTracking() on user.ActiveOrganizationId equals membership.OrganizationId
          join organization in Db.Organizations.AsNoTracking() on membership.OrganizationId equals organization.Id
          where user.Id == userId && membership.UserId == userId && membership.IsActive
-         select new ActiveMembership(organization.Id, organization.Name, membership.Role))
+         select new ActiveMembership(organization.Id, organization.Name, membership.Role, membership.Position))
         .FirstOrDefaultAsync(cancellationToken);
 
     public override Task<Organization?> GetByIdAsync(long id, CancellationToken cancellationToken = default) =>
