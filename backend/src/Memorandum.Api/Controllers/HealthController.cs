@@ -20,7 +20,7 @@ public sealed class HealthController(IConfiguration config, IHostEnvironment env
             Status: "ok",
             Mode: "api",
             Environment: env.EnvironmentName,
-            Database: config["Database:Provider"] ?? "Sqlite",
+            Database: config["Database:Provider"] ?? "Postgres",
             Version: BuildInfo.Version,
             Machine: Environment.MachineName,
             TimeUtc: timeProvider.GetUtcNow().UtcDateTime));
@@ -29,7 +29,7 @@ public sealed class HealthController(IConfiguration config, IHostEnvironment env
 /// <param name="Status">Всегда "ok" — это ответ живого API.</param>
 /// <param name="Mode">"api" — реальный бэкенд, "mock" — заглушка.</param>
 /// <param name="Environment">Development / Production.</param>
-/// <param name="Database">Sqlite (локально) или Postgres (прод).</param>
+/// <param name="Database">Провайдер БД: Postgres в dev и в проде.</param>
 /// <param name="Version">Версия сборки API: семантическая версия + короткий git sha (<c>1.0.0+abc1234</c>).</param>
 /// <param name="Machine">Имя машины/контейнера — видно, что ответил именно api, а не мок.</param>
 /// <param name="TimeUtc">Момент ответа, UTC.</param>

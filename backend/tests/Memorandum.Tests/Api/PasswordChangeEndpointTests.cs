@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Data.Sqlite;
 using Memorandum.Application.Abstractions;
 using Memorandum.Domain.Common;
 using Memorandum.Tests.Infrastructure;
@@ -22,22 +21,14 @@ public sealed class PasswordChangeEndpointTests : IAsyncLifetime
 {
     private readonly CapturingEmailSender _emails = new();
 
-    private SqliteConnectionHolder? _database;
     private TestApi? _api;
 
-    public async Task InitializeAsync()
-    {
-        _database = await SqliteConnectionHolder.CreateAsync();
-        _api = await TestApi.StartAsync(_database.Connection, _emails);
-    }
+    public async Task InitializeAsync() => _api = await TestApi.StartAsync(_emails);
 
     public async Task DisposeAsync()
     {
         if (_api is not null)
             await _api.DisposeAsync();
-
-        if (_database is not null)
-            await _database.DisposeAsync();
     }
 
     private bool Enabled => _api is not null;
@@ -192,15 +183,14 @@ internal sealed class TestApi : IAsyncDisposable
 
     public HttpClient Client { get; }
 
-    public static async Task<TestApi> StartAsync(SqliteConnection database, IEmailSender emails)
+    public static async Task<TestApi> StartAsync(IEmailSender emails)
     {
         var factory = new MemorandumApiFactory
         {
-            Database = database,
             ConfigureServices = services => services.AddSingleton(emails),
             Settings = new()
             {
-                ["Database:Provider"] = "Sqlite",
+                ["Database:Provider"] = "Postgres",
                 ["Mock:Enabled"] = "true",
                 ["PasswordReset:CodePepper"] = "test-pepper",
                 ["Redis:Configuration"] = RedisTestServer.Configuration,

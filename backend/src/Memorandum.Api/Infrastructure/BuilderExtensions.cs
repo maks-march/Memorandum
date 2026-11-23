@@ -7,7 +7,7 @@ namespace Memorandum.Api.Infrastructure;
 internal static class BuilderExtensions
 {
     /// <summary>
-    /// Что недопустимо в Production: SQLite, пустая строка подключения, отсутствие
+    /// Что недопустимо в Production: пустая строка подключения, отсутствие
     /// соли кодов, включённые заглушки и AllowedHosts со звёздочкой.
     /// </summary>
     public static void ProductionGuards(this WebApplicationBuilder builder)

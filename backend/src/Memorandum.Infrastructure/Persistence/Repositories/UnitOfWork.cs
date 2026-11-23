@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Memorandum.Domain.Common;
 using Memorandum.Domain.Interfaces;
@@ -8,7 +7,7 @@ namespace Memorandum.Infrastructure.Persistence.Repositories;
 
 /// <summary>
 /// Граница сохранения. Ошибки уникальности провайдера превращаются в доменный конфликт,
-/// чтобы Application не знал ни про Npgsql, ни про SQLite.
+/// чтобы Application не знал про Npgsql.
 /// </summary>
 public sealed class UnitOfWork(AppDbContext db) : IUnitOfWork
 {
@@ -30,11 +29,6 @@ public sealed class UnitOfWork(AppDbContext db) : IUnitOfWork
         {
             case PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } postgres:
                 constraint = postgres.ConstraintName ?? string.Empty;
-                return true;
-
-            case SqliteException { SqliteErrorCode: 19 } sqlite:
-                // У SQLite имя индекса есть только в тексте сообщения.
-                constraint = sqlite.Message;
                 return true;
 
             default:

@@ -21,12 +21,12 @@ public sealed class DependencyInjectionTests
     }
 
     [Fact]
-    public void Sqlite_provider_registers_all_ports()
+    public void Postgres_provider_registers_all_ports()
     {
         using var provider = BuildProvider(new()
         {
-            ["Database:Provider"] = "Sqlite",
-            ["ConnectionStrings:Sqlite"] = "Data Source=:memory:",
+            ["Database:Provider"] = "Postgres",
+            ["ConnectionStrings:Postgres"] = "Host=localhost;Database=memorandum;Username=u;Password=p",
             ["Redis:Configuration"] = "localhost:6379,abortConnect=false",
         });
         using var scope = provider.CreateScope();
@@ -69,16 +69,17 @@ public sealed class DependencyInjectionTests
     }
 
     [Fact]
-    public void Unknown_provider_fails_with_clear_message()
+    public void Removed_provider_fails_with_clear_message()
     {
         var exception = Assert.Throws<InvalidOperationException>(() =>
             BuildProvider(new()
             {
-                ["Database:Provider"] = "Oracle",
+                ["Database:Provider"] = "Sqlite",
+                ["ConnectionStrings:Postgres"] = "Host=localhost;Database=memorandum;Username=u;Password=p",
                 ["Redis:Configuration"] = "localhost:6379,abortConnect=false",
             }));
 
-        Assert.Contains("Oracle", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("Postgres", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -87,8 +88,8 @@ public sealed class DependencyInjectionTests
         var exception = Assert.Throws<InvalidOperationException>(() =>
             BuildProvider(new()
             {
-                ["Database:Provider"] = "Sqlite",
-                ["ConnectionStrings:Sqlite"] = "Data Source=:memory:",
+                ["Database:Provider"] = "Postgres",
+                ["ConnectionStrings:Postgres"] = "Host=localhost;Database=memorandum;Username=u;Password=p",
             }));
 
         Assert.Contains("Redis:Configuration", exception.Message, StringComparison.Ordinal);
