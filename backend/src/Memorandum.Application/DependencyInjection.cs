@@ -22,7 +22,8 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IPasswordChangeService, PasswordChangeService>();
 
-        services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
+        services.AddScoped<IValidator<IRegisterRequest>, RegisterRequestValidator>();
+        services.AddScoped<IValidator<RegisterRequest>, RegisterWithOrganizationValidator>();
         services.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>();
         services.AddScoped<IValidator<UpdateProfileRequest>, UpdateProfileRequestValidator>();
         services.AddScoped<IValidator<RequestPasswordChangeCodeRequest>, RequestPasswordChangeCodeRequestValidator>();

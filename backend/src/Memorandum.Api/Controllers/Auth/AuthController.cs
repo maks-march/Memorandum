@@ -11,6 +11,7 @@ using Memorandum.Api.Contracts;
 using Memorandum.Api.Mapping;
 using Memorandum.Application.Auth;
 using Memorandum.Application.CurrentUser;
+using FluentValidation;
 
 namespace Memorandum.Api.Controllers.Auth;
 
@@ -42,18 +43,51 @@ public sealed class AuthController(
     [ProducesResponseType<MeHttpResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> Register([FromBody] RegisterHttpRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Register(
+        [FromBody] RegisterHttpRequest request, 
+        IValidator<RegisterRequest> validator, 
+        CancellationToken cancellationToken)
     {
         var result = await authService.RegisterAsync(
             new RegisterRequest(request.Email, request.Password, request.FullName, request.OrgName),
+            validator,
             cancellationToken);
 
         if (result.IsFailure)
             return result.Error.ToProblem(this);
 
-        var body = new MeHttpResponse(
-            result.Value.Id, result.Value.Email, result.Value.FullName,
-            Position: null, Phone: null, OrganizationId: null, OrganizationName: null, Role: null);
+        var body = MeHttpResponse.From(result.Value);
+
+        // Location ведёт на профиль, хотя сам профиль вернётся только после входа.
+        return Created($"/api/v1/me", body);
+    }
+
+    /// <summary>Регистрация с кодом приглашения в организацию. Вход не выполняет: cookie выдаёт <c>login</c>.</summary>
+    /// <response code="201">Пользователь создан; заголовок Location ведёт на профиль.</response>
+    /// <response code="400">Некорректные поля запроса.</response>
+    /// <response code="403">Код приглашения некорректен.</response>
+    /// <response code="409">Email уже зарегистрирован.</response>
+    [HttpPost("register-with-invite")]
+    [AllowAnonymous]
+    [RequireAntiforgeryToken]
+    [EnableRateLimiting(RateLimitingExtensions.AuthPolicy)]
+    [ProducesResponseType<MeHttpResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RegisterWithInvite(
+        [FromBody] RegisterWithInviteHttpRequest request, 
+        IValidator<IRegisterRequest> validator, 
+        CancellationToken cancellationToken)
+    {
+        var result = await authService.RegisterAsync(
+            new RegisterWithInviteRequest(request.Email, request.Password, request.FullName, request.InviteCode),
+            validator,
+            cancellationToken);
+
+        if (result.IsFailure)
+            return result.Error.ToProblem(this);
+
+        var body = MeHttpResponse.From(result.Value);
 
         // Location ведёт на профиль, хотя сам профиль вернётся только после входа.
         return Created($"/api/v1/me", body);

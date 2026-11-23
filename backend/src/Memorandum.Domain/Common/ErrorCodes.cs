@@ -22,6 +22,7 @@ public static class ErrorCodes
     // организации
     public const string OrganizationInactive = "ORGANIZATION_INACTIVE";
     public const string MemberAlreadyExists = "MEMBER_ALREADY_EXISTS";
+    public const string InvalidInviteCode = "INVALID_INVITE_CODE";
     public const string LastOrgAdminRequired = "LAST_ORG_ADMIN_REQUIRED";
 
     // проекты

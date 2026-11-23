@@ -19,4 +19,9 @@ public sealed class OrganizationRepository(AppDbContext db) : EfRepository<Organ
     public override Task<Organization?> GetByIdAsync(long id, CancellationToken cancellationToken = default) =>
         Set.Include(organization => organization.Memberships)
             .FirstOrDefaultAsync(organization => organization.Id == id, cancellationToken);
+
+    public Task<Organization?> GetOrganizationByInviteCode(string inviteCode, CancellationToken cancellationToken = default) => 
+        Set.Include(organization => organization.Memberships)
+            .FirstOrDefaultAsync(organization => organization.CheckInviteCode(inviteCode), cancellationToken);
+
 }
