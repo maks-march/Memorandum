@@ -21,9 +21,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    # Redis-тесты ходят на localhost:6379 — поднимаем сервис рядом с job.
-    # Без него падают RedisPasswordResetTicketStoreTests и сценарий смены пароля.
+    # Тесты работают на живых Postgres и Redis с localhost — поднимаем оба рядом с job.
+    # Без Postgres падает любой тест, которому нужна схема; без Redis — коды и сценарий смены пароля.
     services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: memorandum
+          POSTGRES_USER: memorandum
+          POSTGRES_PASSWORD: memorandum
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U memorandum -d memorandum"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
       redis:
         image: redis:7-alpine
         ports:
@@ -51,21 +65,32 @@ jobs:
       - name: Сборка
         run: dotnet build backend/Memorandum.slnx --no-restore -c Release
 
-      - name: Ждать Redis
+      - name: Ждать Postgres и Redis
         run: |
           for _ in {1..30}; do
             if docker run --rm --network host redis:7-alpine redis-cli -h 127.0.0.1 ping | grep -q PONG; then
               echo "Redis готов"
+              break
+            fi
+            sleep 1
+          done
+
+          for _ in {1..30}; do
+            if docker run --rm --network host postgres:17-alpine \
+                 pg_isready -h 127.0.0.1 -U memorandum -d memorandum; then
+              echo "Postgres готов"
               exit 0
             fi
             sleep 1
           done
-          echo "Redis не поднялся за 30 с"
+
+          echo "Postgres не поднялся за 30 с"
           exit 1
 
       - name: Тесты
         env:
           REDIS: localhost:6379
+          POSTGRES: "Host=localhost;Port=5432;Database=memorandum;Username=memorandum;Password=memorandum"
         run: >
           dotnet test backend/Memorandum.slnx
           --no-build -c Release
@@ -135,7 +160,7 @@ jobs:
       - name: shellcheck
         run: |
           docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:stable \
-            infra/prod-up.sh
+            infra/prod-up.sh backend/migrations.sh
 
       - name: Подготовить .env
         run: cp infra/.env.example infra/.env

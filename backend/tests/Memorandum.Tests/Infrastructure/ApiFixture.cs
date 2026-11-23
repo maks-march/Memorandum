@@ -1,43 +1,38 @@
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
 using Memorandum.Infrastructure.Persistence;
 
 namespace Memorandum.Tests.Infrastructure;
 
 /// <summary>
-/// Приложение целиком на SQLite в памяти: HTTP-тесты не требуют Docker,
-/// но работают на настоящем реляционном провайдере (индексы, FK, транзакции).
+/// Приложение целиком на Postgres: HTTP-тесты видят ту же схему, индексы и ограничения,
+/// что и прод. База создаётся миграциями и удаляется после прогона.
 /// </summary>
 public sealed class ApiFixture : IAsyncLifetime
 {
-    private SqliteConnectionHolder? _database;
-
     public MemorandumApiFactory Factory { get; private set; } = null!;
 
     public HttpClient Client { get; private set; } = null!;
 
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
-        _database = await SqliteConnectionHolder.CreateAsync();
-
-        Factory = new MemorandumApiFactory { Database = _database.Connection };
+        Factory = new MemorandumApiFactory();
         Client = Factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             HandleCookies = false,
             AllowAutoRedirect = false,
         });
+
+        return Task.CompletedTask;
     }
 
     public async Task DisposeAsync()
     {
         Client.Dispose();
         await Factory.DisposeAsync();
-
-        if (_database is not null)
-            await _database.DisposeAsync();
     }
 
-    internal AppDbContext NewContext() => _database!.NewContext();
+    /// <summary>Контекст на базе стенда: проверка того, что реально сохранилось.</summary>
+    internal AppDbContext NewContext() => Factory.NewContext();
 
-    internal SqliteConnectionHolder Database => _database!;
+    internal string ConnectionString => Factory.ConnectionString!;
 }

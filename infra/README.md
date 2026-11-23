@@ -2,7 +2,7 @@
 
 | Файл | Что поднимает | Куда смотреть |
 |---|---|---|
-| `docker-compose.dev.yml` | api (`dotnet watch`, SQLite) + web (Vite dev-server) + redis | фронт `:5173`, API `:5000`, Scalar `:5000/scalar/v1` |
+| `docker-compose.dev.yml` | api (`dotnet watch`) + db (Postgres) + web (Vite dev-server) + redis | фронт `:5173`, API `:5000`, Scalar `:5000/scalar/v1`, База `:5432` |
 | `docker-compose.prod.yml` | nginx (SPA + прокси) + api (Postgres) + db + redis + опц. certbot | `:80` (и `:443` с профилем `tls`) |
 
 ## DEV

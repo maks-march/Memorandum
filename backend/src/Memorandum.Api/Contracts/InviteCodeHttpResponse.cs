@@ -6,6 +6,11 @@ namespace Memorandum.Api.Contracts;
 /// Ответ на выдачу кода приглашения. Код показывается один раз: в хранилище
 /// лежит только его хеш, повторно посмотреть нельзя — можно выдать новый.
 /// </summary>
+/// <param name="OrganizationId">Организация, в которую приглашают.</param>
+/// <param name="OrganizationName">Её название — чтобы код не перепутали.</param>
+/// <param name="Code">Код для передачи сотруднику.</param>
+/// <param name="Role">Роль приглашённого: Editor или Viewer.</param>
+/// <param name="ExpiresAt">Когда код перестанет действовать (сутки).</param>
 public sealed record InviteCodeHttpResponse(
     long OrganizationId,
     string OrganizationName,

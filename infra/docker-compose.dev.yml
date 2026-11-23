@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  DEV: горячая перезагрузка бэка и фронта, SQLite, Redis, всё локально.
+#  DEV: горячая перезагрузка бэка и фронта, Postgres, Redis, всё локально.
 #  Запуск:  docker compose -f infra/docker-compose.dev.yml up
 #  Фронт:   http://localhost:5173      API: http://localhost:5000/scalar/v1
 # ─────────────────────────────────────────────────────────────────────────────
@@ -16,15 +16,17 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
       DOTNET_USE_POLLING_FILE_WATCHER: "1"      # надёжнее на Docker Desktop (Win/Mac)
-      Database__Provider: Sqlite
+      Database__Provider: Postgres
+      ConnectionStrings__Postgres: "Host=db;Port=5432;Database=${POSTGRES_DB:-memorandum};Username=${POSTGRES_USER:-memorandum};Password=${POSTGRES_PASSWORD:-memorandum}"
       Mock__Enabled: "true"
       # коды смены пароля: Redis ниже, в этой же compose-сети
       Redis__Configuration: "redis:6379"
     volumes:
       - ../backend:/src
       - nuget:/root/.nuget/packages          # быстрый restore между перезапусками
-      # файл SQLite (app.db) создаётся рядом с проектом и не коммитится: src/Memorandum.Api/app.db
     depends_on:
+      db:
+        condition: service_healthy             # миграции на старте ждут готовую БД
       redis:
         condition: service_healthy
     ports:
@@ -37,6 +39,23 @@ services:
       retries: 10
       start_period: 60s
 
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-memorandum}
+      POSTGRES_USER: ${POSTGRES_USER:-memorandum}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-memorandum}
+    restart: unless-stopped
+    ports:
+      - "5432:5432"                           # наружу нужен тестам на хосте (dotnet test)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
   redis:
     image: redis:7-alpine                     # тикеты смены пароля (TTL + Lua)
     command: ["redis-server", "--save", "", "--appendonly", "no"]
@@ -47,9 +66,9 @@ services:
       timeout: 3s
       retries: 5
     ports:
-      - "6379:6379"         
+      - "6379:6379"  
     volumes:
-      - redisdata:/data
+      - redisdata:/data    
     # порт наружу не публикуем: снаружи не нужен. Для тестов на хосте:
     #   docker run -d --name memorandum-redis -p 6379:6379 redis:7-alpine
 
@@ -73,4 +92,5 @@ services:
 volumes:
   nuget:
   node_modules:
+  pgdata:
   redisdata:

@@ -11,7 +11,7 @@ public sealed class UnitOfWorkTests
     [Fact]
     public async Task Save_maps_duplicate_email_to_domain_conflict()
     {
-        await using var database = await SqliteDatabase.CreateAsync();
+        await using var database = await PostgresTestDatabase.CreateAsync();
         var unitOfWork = new UnitOfWork(database.Context);
         var now = TestHelpers.Now;
 
@@ -27,7 +27,7 @@ public sealed class UnitOfWorkTests
     [Fact]
     public async Task Save_maps_second_active_membership_to_domain_conflict()
     {
-        await using var database = await SqliteDatabase.CreateAsync();
+        await using var database = await PostgresTestDatabase.CreateAsync();
         var unitOfWork = new UnitOfWork(database.Context);
         var now = TestHelpers.Now;
 
@@ -48,7 +48,7 @@ public sealed class UnitOfWorkTests
     [Fact]
     public async Task Inactive_membership_does_not_block_readding_user()
     {
-        await using var database = await SqliteDatabase.CreateAsync();
+        await using var database = await PostgresTestDatabase.CreateAsync();
         var unitOfWork = new UnitOfWork(database.Context);
         var now = TestHelpers.Now;
 

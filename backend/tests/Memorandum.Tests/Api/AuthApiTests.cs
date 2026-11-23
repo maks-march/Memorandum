@@ -8,7 +8,7 @@ namespace Memorandum.Tests.Infrastructure.Api;
 
 /// <summary>
 /// HTTP-контракт auth: cookie-аутентификация, антифоржери и коды ошибок.
-/// Приложение поднимается целиком (<c>WebApplicationFactory</c>) на SQLite в памяти.
+/// Приложение поднимается целиком (<c>WebApplicationFactory</c>) на Postgres.
 /// </summary>
 public sealed class AuthApiTests : IClassFixture<ApiFixture>
 {
