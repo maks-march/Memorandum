@@ -138,6 +138,13 @@ public sealed class Organization : AuditableEntity
         Touch(utcNow, updatedBy);
     }
 
+    /// <summary>
+    /// Роль, которую можно выдать по коду приглашения. Администратором делает
+    /// только действующий администратор организации, а не всякий, кто знает код.
+    /// </summary>
+    public static bool CanInviteWithRole(OrganizationRole role) =>
+        role is OrganizationRole.Editor or OrganizationRole.Viewer;
+
     /// <summary>Есть ли у пользователя активное участие — по нему строится изоляция данных.</summary>
     public bool HasActiveMember(long userId) =>
         userId > 0 && _memberships.Any(membership => membership.IsActive && membership.UserId == userId);

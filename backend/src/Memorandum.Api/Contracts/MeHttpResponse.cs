@@ -11,13 +11,13 @@ public sealed record MeHttpResponse(
     long Id,
     string Email,
     string FullName,
-    string? Position,
     string? Phone,
+    string? Position,
     long? OrganizationId,
     string? OrganizationName,
     OrganizationRole? Role)
 {
     public static MeHttpResponse From(CurrentUserDto dto) =>
-        new(dto.Id, dto.Email, dto.FullName, dto.Position, dto.Phone,
+        new(dto.Id, dto.Email, dto.FullName, dto.Phone, dto.Position,
             dto.OrganizationId, dto.OrganizationName, dto.Role);
 }

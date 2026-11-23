@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Memorandum.Api.Contracts;
+using Memorandum.Domain.Organizations;
 
 namespace Memorandum.Tests.Infrastructure.Api;
 
@@ -55,6 +56,32 @@ internal sealed class Session(HttpClient client)
 
         var body = await response.Content.ReadFromJsonAsync<MeHttpResponse>(Json);
         return body!.Id;
+    }
+
+    /// <summary>Регистрация сотрудника по коду приглашения; возвращает id нового пользователя.</summary>
+    public async Task<long> AcceptInviteAsync(string code, string email, string fullName = "Пётр Иванов")
+    {
+        using var response = await PostAsync(
+            "/api/v1/auth/accept-invite",
+            new AcceptInviteHttpRequest(code, email, "password123", fullName));
+
+        var problem = response.IsSuccessStatusCode ? null : await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.Created, $"Регистрация по коду не прошла: {problem}");
+
+        var body = await response.Content.ReadFromJsonAsync<MeHttpResponse>(Json);
+        return body!.Id;
+    }
+
+    /// <summary>Выдача кода приглашения от имени вошедшего администратора.</summary>
+    public async Task<InviteCodeHttpResponse> IssueInviteCodeAsync(OrganizationRole role = OrganizationRole.Editor)
+    {
+        using var response = await PostAsync(
+            "/api/v1/auth/invite-code", new RequestInviteCodeHttpRequest(role));
+
+        var raw = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.OK, $"Код не выдан: {raw}");
+
+        return JsonSerializer.Deserialize<InviteCodeHttpResponse>(raw, Json)!;
     }
 
     public Task<LoginHttpResponse> LoginAsync(string email, string password = "password123") =>

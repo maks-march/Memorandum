@@ -11,6 +11,8 @@ using Memorandum.Api.Contracts;
 using Memorandum.Api.Mapping;
 using Memorandum.Application.Auth;
 using Memorandum.Application.CurrentUser;
+using Memorandum.Application.Invitations;
+using Memorandum.Application.Invitations.Models;
 
 namespace Memorandum.Api.Controllers.Auth;
 
@@ -22,6 +24,7 @@ namespace Memorandum.Api.Controllers.Auth;
 public sealed class AuthController(
     IAuthService authService,
     ICurrentUserService currentUserService,
+    IInviteCodeService inviteCodeService,
     IAntiforgery antiforgery) : ControllerBase
 {
     /// <summary>Анти-CSRF токен. Нужен до первого POST, поэтому доступен без входа.</summary>
@@ -31,7 +34,11 @@ public sealed class AuthController(
     [ProducesResponseType<CsrfHttpResponse>(StatusCodes.Status200OK)]
     public ActionResult<CsrfHttpResponse> GetCsrfToken() => Ok(new CsrfHttpResponse(IssueAntiforgeryToken()));
 
-    /// <summary>Регистрация. Вход не выполняет: cookie выдаёт <c>login</c>.</summary>
+    /// <summary>
+    /// Регистрация. Вход не выполняет: cookie выдаёт <c>login</c>.
+    /// С <c>orgName</c> пользователь создаёт организацию и становится её администратором —
+    /// это единственный путь получить организацию без кода приглашения.
+    /// </summary>
     /// <response code="201">Пользователь создан; заголовок Location ведёт на профиль.</response>
     /// <response code="400">Некорректные поля запроса.</response>
     /// <response code="409">Email уже зарегистрирован.</response>
@@ -53,10 +60,75 @@ public sealed class AuthController(
 
         var body = new MeHttpResponse(
             result.Value.Id, result.Value.Email, result.Value.FullName,
-            Position: null, Phone: null, OrganizationId: null, OrganizationName: null, Role: null);
+            Phone: null, Position: null, OrganizationId: null, OrganizationName: null, Role: null);
 
         // Location ведёт на профиль, хотя сам профиль вернётся только после входа.
         return Created($"/api/v1/me", body);
+    }
+
+    /// <summary>
+    /// Регистрация сотрудника по коду приглашения. Организация и роль берутся из кода,
+    /// код одноразовый. Вход, как и у обычной регистрации, отдельным вызовом.
+    /// </summary>
+    /// <response code="201">Сотрудник создан и добавлен в организацию.</response>
+    /// <response code="400">Некорректные поля или код не указан.</response>
+    /// <response code="409">Email уже зарегистрирован.</response>
+    /// <response code="422">Код недействителен, истёк или уже использован.</response>
+    [HttpPost("accept-invite")]
+    [AllowAnonymous]
+    [RequireAntiforgeryToken]
+    [EnableRateLimiting(RateLimitingExtensions.AuthPolicy)]
+    [ProducesResponseType<MeHttpResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> AcceptInvite(
+        [FromBody] AcceptInviteHttpRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await authService.RegisterByInviteAsync(
+            new RegisterRequest(request.Email, request.Password, request.FullName, OrgName: null),
+            request.Code,
+            cancellationToken);
+
+        if (result.IsFailure)
+            return result.Error.ToProblem(this);
+
+        var body = new MeHttpResponse(
+            result.Value.Id, result.Value.Email, result.Value.FullName,
+            Phone: null, Position: null, OrganizationId: null, OrganizationName: null, Role: null);
+
+        return Created($"/api/v1/me", body);
+    }
+
+    /// <summary>
+    /// Код приглашения в свою организацию. Выдаёт только администратор организации;
+    /// новый код отменяет предыдущий, срок жизни — сутки, в хранилище лежит лишь хеш.
+    /// </summary>
+    /// <response code="200">Код выдан — показывается один раз.</response>
+    /// <response code="400">Нельзя выдать такую роль.</response>
+    /// <response code="401">Нет cookie или сессия отозвана.</response>
+    /// <response code="403">Пользователь не администратор организации.</response>
+    /// <response code="503">Хранилище кодов недоступно.</response>
+    [HttpPost("invite-code")]
+    [Authorize]
+    [RequireAntiforgeryToken]
+    [ProducesResponseType<InviteCodeHttpResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> RequestInviteCode(
+        [FromBody] RequestInviteCodeHttpRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await inviteCodeService.IssueAsync(
+            new RequestInviteCodeRequest(request.Role),
+            cancellationToken);
+
+        return result.IsSuccess
+            ? Ok(InviteCodeHttpResponse.From(result.Value))
+            : result.Error.ToProblem(this);
     }
 
     /// <summary>Вход по email и паролю. Ошибка не уточняет, что именно неверно.</summary>

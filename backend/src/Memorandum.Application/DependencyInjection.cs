@@ -5,6 +5,9 @@ using Memorandum.Application.PasswordChange;
 using Memorandum.Application.PasswordChange.Models;
 using Memorandum.Application.PasswordChange.Validators;
 using Memorandum.Application.CurrentUser;
+using Memorandum.Application.Invitations;
+using Memorandum.Application.Invitations.Models;
+using Memorandum.Application.Invitations.Validators;
 using Memorandum.Application.CurrentUser.Models;
 using Memorandum.Application.CurrentUser.Validators;
 
@@ -21,10 +24,12 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IPasswordChangeService, PasswordChangeService>();
+        services.AddScoped<IInviteCodeService, InviteCodeService>();
 
         services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
         services.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>();
         services.AddScoped<IValidator<UpdateProfileRequest>, UpdateProfileRequestValidator>();
+        services.AddScoped<IValidator<RequestInviteCodeRequest>, RequestInviteCodeRequestValidator>();
         services.AddScoped<IValidator<RequestPasswordChangeCodeRequest>, RequestPasswordChangeCodeRequestValidator>();
         services.AddScoped<IValidator<(long UserId, string? Code, string? NewPassword)>, ConfirmPasswordChangeRequestValidator>();
 

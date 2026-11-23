@@ -37,6 +37,7 @@ public class MemorandumApiFactory : WebApplicationFactory<Program>
         ["Database:Provider"] = "Sqlite",
         ["Mock:Enabled"] = "true",
         ["PasswordReset:CodePepper"] = "test-pepper",
+        ["Invitations:CodePepper"] = "test-pepper",
         ["Redis:Configuration"] = "localhost:6379,abortConnect=false,connectTimeout=1000",
         // Тесты не должны упираться в лимит: конкретные значения задаются в RateLimitTests.
         ["RateLimit:AuthPermitLimit"] = "1000",

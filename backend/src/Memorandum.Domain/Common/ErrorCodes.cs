@@ -29,6 +29,12 @@ public static class ErrorCodes
     public const string ProjectMemberRequired = "PROJECT_MEMBER_REQUIRED";
     public const string OrganizationMismatch = "ORGANIZATION_MISMATCH";
 
+    // приглашения
+    public const string InviteCodeInvalid = "INVITE_CODE_INVALID";
+    public const string InviteCodeExpired = "INVITE_CODE_EXPIRED";
+    public const string InviteCodeMissing = "INVITE_CODE_MISSING";
+    public const string InviteTooManyAttempts = "INVITE_TOO_MANY_ATTEMPTS";
+
     // смена пароля
     public const string ResetCodeInvalid = "RESET_CODE_INVALID";
     public const string ResetCodeExpired = "RESET_CODE_EXPIRED";

@@ -4,5 +4,5 @@ namespace Memorandum.Api.Contracts;
 /// <param name="Email">Email пользователя.</param>
 /// <param name="Password">Пароль в открытом виде.</param>
 /// <param name="FullName">ФИО.</param>
-/// <param name="OrgName">Название организации; если задано, пользователь станет её администратором.</param>
+/// <param name="OrgName">Название организации; если задано, пользователь создаст её и станет администратором.</param>
 public sealed record RegisterHttpRequest(string? Email, string? Password, string? FullName, string? OrgName);
