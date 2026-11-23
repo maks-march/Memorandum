@@ -5,13 +5,13 @@ using Memorandum.Infrastructure.Persistence.Repositories;
 
 namespace Memorandum.Tests.Infrastructure;
 
-/// <summary>Сохранение и чтение агрегатов на настоящем реляционном провайдере (SQLite в памяти).</summary>
+/// <summary>Сохранение и чтение агрегатов на Postgres: та же схема, что и в проде.</summary>
 public sealed class RepositoryTests
 {
     [Fact]
     public async Task Saves_organization_with_members_through_public_api()
     {
-        await using var database = await SqliteDatabase.CreateAsync();
+        await using var database = await PostgresTestDatabase.CreateAsync();
         var now = TestHelpers.Now;
 
         var organization = Organization.Create("ООО Ромашка", now, "admin");
@@ -36,7 +36,7 @@ public sealed class RepositoryTests
     [Fact]
     public async Task User_keeps_private_setters_round_trip()
     {
-        await using var database = await SqliteDatabase.CreateAsync();
+        await using var database = await PostgresTestDatabase.CreateAsync();
         var user = User.Create("Ivan@Example.RU", "Иван", TestHelpers.Now, "admin");
 
         database.Context.Users.Add(user);
@@ -56,7 +56,7 @@ public sealed class RepositoryTests
     [Fact]
     public async Task Credential_is_stored_for_user()
     {
-        await using var database = await SqliteDatabase.CreateAsync();
+        await using var database = await PostgresTestDatabase.CreateAsync();
         var user = User.Create("a@b.ru", "Иван", TestHelpers.Now);
 
         database.Context.Users.Add(user);
@@ -73,7 +73,7 @@ public sealed class RepositoryTests
     [Fact]
     public async Task Active_membership_is_resolved_for_user()
     {
-        await using var database = await SqliteDatabase.CreateAsync();
+        await using var database = await PostgresTestDatabase.CreateAsync();
         var user = User.Create("a@b.ru", "Иван", TestHelpers.Now);
         var organization = Organization.Create("ООО Ромашка", TestHelpers.Now);
         organization.AddMember(user, OrganizationRole.Editor, TestHelpers.Now);
@@ -96,7 +96,7 @@ public sealed class RepositoryTests
     [Fact]
     public async Task Active_membership_is_null_without_selected_organization()
     {
-        await using var database = await SqliteDatabase.CreateAsync();
+        await using var database = await PostgresTestDatabase.CreateAsync();
         var user = User.Create("a@b.ru", "Иван", TestHelpers.Now);
 
         database.Context.Users.Add(user);
@@ -110,7 +110,7 @@ public sealed class RepositoryTests
     [Fact]
     public async Task ExistsByNormalizedEmail_finds_saved_user()
     {
-        await using var database = await SqliteDatabase.CreateAsync();
+        await using var database = await PostgresTestDatabase.CreateAsync();
         database.Context.Users.Add(User.Create("A@B.RU", "Иван", TestHelpers.Now));
         await database.Context.SaveChangesAsync();
 
@@ -124,7 +124,7 @@ public sealed class RepositoryTests
     [Fact]
     public async Task Deleting_organization_removes_memberships()
     {
-        await using var database = await SqliteDatabase.CreateAsync();
+        await using var database = await PostgresTestDatabase.CreateAsync();
         var user = User.Create("a@b.ru", "Иван", TestHelpers.Now);
         var organization = Organization.Create("ООО", TestHelpers.Now);
         organization.AddMember(user, OrganizationRole.Editor, TestHelpers.Now);

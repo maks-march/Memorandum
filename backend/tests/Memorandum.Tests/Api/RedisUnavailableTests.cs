@@ -24,10 +24,22 @@ public sealed class RedisUnavailableTests : IClassFixture<ApiFixture>
     public async Task Dead_redis_returns_503_and_storage_code_instead_of_500()
     {
         await using var store = new UnavailableRedisTicketStore();
+        // База — от общего стенда: регистрируем её строку через конфигурацию,
+        // чтобы не плодить лишнюю базу ради одного теста.
         using var factory = new MemorandumApiFactory
         {
-            Database = _fixture.Database.Connection,
             ConfigureServices = services => services.AddSingleton<IPasswordResetTicketStore>(store),
+            Settings = new()
+            {
+                ["Database:Provider"] = "Postgres",
+                ["ConnectionStrings:Postgres"] = _fixture.ConnectionString,
+                ["Mock:Enabled"] = "true",
+                ["PasswordReset:CodePepper"] = "test-pepper",
+                ["Invitations:CodePepper"] = "test-pepper",
+                ["Redis:Configuration"] = "localhost:6379,abortConnect=false,connectTimeout=1000",
+                ["RateLimit:AuthPermitLimit"] = "1000",
+                ["RateLimit:GlobalPermitLimit"] = "1000",
+            },
         };
 
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });

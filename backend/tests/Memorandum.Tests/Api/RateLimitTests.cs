@@ -14,20 +14,15 @@ public sealed class RateLimitTests : IAsyncLifetime
 {
     private MemorandumApiFactory _factory = null!;
     private HttpClient _client = null!;
-    private SqliteConnectionHolder _database = null!;
 
     public async Task InitializeAsync()
     {
-        // Своя база в памяти: без неё фабрика взяла бы файл app.db из appsettings,
-        // а он живёт между прогонами и отстаёт от модели.
-        _database = await SqliteConnectionHolder.CreateAsync();
 
         _factory = new MemorandumApiFactory
         {
-            Database = _database.Connection,
             Settings = new()
             {
-                ["Database:Provider"] = "Sqlite",
+                ["Database:Provider"] = "Postgres",
                 ["RateLimit:AuthPermitLimit"] = "3",
                 ["RateLimit:AuthWindowSeconds"] = "60",
             },
@@ -40,7 +35,6 @@ public sealed class RateLimitTests : IAsyncLifetime
     {
         _client.Dispose();
         await _factory.DisposeAsync();
-        await _database.DisposeAsync();
     }
 
     [Fact]

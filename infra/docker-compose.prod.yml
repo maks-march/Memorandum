@@ -84,6 +84,8 @@ services:
       Redis__Configuration: "redis:6379,password=${REDIS_PASSWORD:?задайте REDIS_PASSWORD в infra/.env}"
       # соль для хеша кода: при смене все выданные коды перестают действовать
       PasswordReset__CodePepper: "${PASSWORD_RESET_PEPPER:?задайте PASSWORD_RESET_PEPPER в infra/.env}"
+      # та же соль для кодов приглашения: при смене выданные коды перестают действовать
+      Invitations__CodePepper: "${PASSWORD_RESET_PEPPER:?задайте PASSWORD_RESET_PEPPER в infra/.env}"
       # host-фильтрация: домен + localhost (для healthcheck изнутри контейнера)
       AllowedHosts: "${APP_HOST:-localhost};localhost;127.0.0.1"
       # доверяем X-Forwarded-* только от nginx из этой docker-сети (см. networks ниже)
@@ -113,8 +115,9 @@ services:
       ConnectionStrings__Postgres: "Host=db;Port=5432;Database=memorandum;Username=memorandum;Password=ci-password"
       Proxy__TrustedNetworks__0: 172.28.0.0/16
       PasswordReset__CodePepper: ci-pepper
+      Invitations__CodePepper: ci-pepper
       Redis__Configuration: "redis:6379,password=${REDIS_PASSWORD:?задайте REDIS_PASSWORD в infra/.env}"
-      # проверяем именно контракт HTTP, а не запуск миграций: в CI нет Postgres
+      # проверяем контракт HTTP, а не подключение к БД: в CI нет Postgres
       Database__ApplyMigrationsOnStartup: "false"
     ports:
       - "18080:8080"
