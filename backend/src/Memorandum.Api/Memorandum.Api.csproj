@@ -19,7 +19,7 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
     <PackageReference Include="Scalar.AspNetCore" Version="3.1.1" />
     <!-- транзитивная 2.0.0 содержала уязвимость GHSA-v5pm-xwqc-g5wc -->
-    <PackageReference Include="Microsoft.OpenApi" Version="2.13.0" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.13.1" />
   </ItemGroup>
 
   <ItemGroup>
