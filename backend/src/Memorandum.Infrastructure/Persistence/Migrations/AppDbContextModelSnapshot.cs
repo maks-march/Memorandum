@@ -79,6 +79,83 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                     b.ToTable("organizations", (string)null);
                 });
 
+            modelBuilder.Entity("Memorandum.Domain.Organizations.OrganizationInvitation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at");
+
+                    b.Property<long?>("AcceptedUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("accepted_user_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("email");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("NormalizedEmail")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("normalized_email");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("role");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AcceptedUserId");
+
+                    b.HasIndex("NormalizedEmail")
+                        .HasDatabaseName("ix_organization_invitations_normalized_email");
+
+                    b.HasIndex("OrganizationId", "NormalizedEmail")
+                        .IsUnique()
+                        .HasDatabaseName("ux_organization_invitations_pending_email")
+                        .HasFilter("\"status\" = 'Pending'");
+
+                    b.ToTable("organization_invitations", (string)null);
+                });
+
             modelBuilder.Entity("Memorandum.Domain.Organizations.OrganizationMembership", b =>
                 {
                     b.Property<long>("Id")
@@ -134,6 +211,61 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasFilter("\"is_active\"");
 
                     b.ToTable("organization_memberships", (string)null);
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Projects.DocumentSection", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DataJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("data_json");
+
+                    b.Property<long>("DocumentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("document_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_document_sections_document_id_code");
+
+                    b.ToTable("document_sections", (string)null);
                 });
 
             modelBuilder.Entity("Memorandum.Domain.Projects.Project", b =>
@@ -200,6 +332,62 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_projects_organization_id_is_archived");
 
                     b.ToTable("projects", (string)null);
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Projects.ProjectDocument", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_archived");
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id");
+
+                    b.Property<string>("SchemaCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("schema_code");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "IsArchived")
+                        .HasDatabaseName("ix_project_documents_project_id_is_archived");
+
+                    b.ToTable("project_documents", (string)null);
                 });
 
             modelBuilder.Entity("Memorandum.Domain.Projects.ProjectMember", b =>
@@ -401,6 +589,24 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                     b.ToTable("data_protection_keys", (string)null);
                 });
 
+            modelBuilder.Entity("Memorandum.Domain.Organizations.OrganizationInvitation", b =>
+                {
+                    b.HasOne("Memorandum.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("AcceptedUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_organization_invitations_users");
+
+                    b.HasOne("Memorandum.Domain.Organizations.Organization", "Organization")
+                        .WithMany("Invitations")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_organization_invitations_organizations");
+
+                    b.Navigation("Organization");
+                });
+
             modelBuilder.Entity("Memorandum.Domain.Organizations.OrganizationMembership", b =>
                 {
                     b.HasOne("Memorandum.Domain.Organizations.Organization", "Organization")
@@ -422,6 +628,18 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Memorandum.Domain.Projects.DocumentSection", b =>
+                {
+                    b.HasOne("Memorandum.Domain.Projects.ProjectDocument", "Document")
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_document_sections_project_documents");
+
+                    b.Navigation("Document");
+                });
+
             modelBuilder.Entity("Memorandum.Domain.Projects.Project", b =>
                 {
                     b.HasOne("Memorandum.Domain.Organizations.Organization", "Organization")
@@ -438,6 +656,18 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_projects_responsible_user");
 
                     b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Projects.ProjectDocument", b =>
+                {
+                    b.HasOne("Memorandum.Domain.Projects.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_documents_projects");
+
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("Memorandum.Domain.Projects.ProjectMember", b =>
@@ -484,6 +714,8 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Memorandum.Domain.Organizations.Organization", b =>
                 {
+                    b.Navigation("Invitations");
+
                     b.Navigation("Memberships");
                 });
 

@@ -68,9 +68,7 @@ services:
     ports:
       - "6379:6379"  
     volumes:
-      - redisdata:/data    
-    # порт наружу не публикуем: снаружи не нужен. Для тестов на хосте:
-    #   docker run -d --name memorandum-redis -p 6379:6379 redis:7-alpine
+      - redisdata:/data
 
   web:
     image: node:26-alpine

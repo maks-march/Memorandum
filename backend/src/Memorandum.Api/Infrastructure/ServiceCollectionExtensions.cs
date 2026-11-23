@@ -22,7 +22,14 @@ internal static class ServiceCollectionExtensions
     {
         // AddControllersWithViews нужен ради штатного фильтра [RequireAntiforgeryToken]:
         // с одним AddControllers() провал проверки не превращается в 400.
-        services.AddControllersWithViews(options => options.Filters.Add<ApiClientErrorResultFilter>());
+        services.AddControllersWithViews(options => options.Filters.Add<ApiClientErrorResultFilter>())
+            .ConfigureApplicationPartManager(parts =>
+            {
+                // Заглушки /api/v1/mocks/... — часть приложения, но подключаются только
+                // при Mock:Enabled: в проде контроллеров моков в контейнере нет.
+                if (!configuration.GetValue("Mock:Enabled", false))
+                    parts.FeatureProviders.Add(new MocksExcludedProvider());
+            });
         services.AddProblemDetails();
         services.AddAntiforgery(options => ConfigureAntiforgery(options, environment));
 

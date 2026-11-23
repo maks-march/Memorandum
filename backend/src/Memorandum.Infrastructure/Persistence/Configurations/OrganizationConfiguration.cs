@@ -47,5 +47,15 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
         builder.Navigation(organization => organization.Memberships)
             .HasField("_memberships")
             .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.HasMany(organization => organization.Invitations)
+            .WithOne(invitation => invitation.Organization)
+            .HasForeignKey(invitation => invitation.OrganizationId)
+            .HasConstraintName("fk_organization_invitations_organizations")
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(organization => organization.Invitations)
+            .HasField("_invitations")
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

@@ -150,6 +150,13 @@ public sealed class Project : AuditableEntity
             ResponsibleUserId = null;
     }
 
+    /// <summary>
+    /// Доступ к проекту: сотрудник той же организации и не архивный проект.
+    /// Состав участников (кто именно работает) — отдельный, более узкий вопрос.
+    /// </summary>
+    public bool CanBeWorkedOnBy(long userId, long userOrganizationId) =>
+        !IsArchived && userOrganizationId == OrganizationId && Organization is { IsActive: true } && userId > 0;
+
     public bool HasMember(long userId) =>
         userId > 0 && _members.Any(member => member.IsActive && member.UserId == userId);
 

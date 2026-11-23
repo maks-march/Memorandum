@@ -29,6 +29,14 @@ public static class ErrorCodes
     public const string ProjectMemberRequired = "PROJECT_MEMBER_REQUIRED";
     public const string OrganizationMismatch = "ORGANIZATION_MISMATCH";
 
+    // приглашения по email
+    public const string InvitationExpired = "INVITATION_EXPIRED";
+    public const string InvitationAlreadyHandled = "INVITATION_ALREADY_HANDLED";
+
+    // документы
+    public const string DocumentNotEditable = "DOCUMENT_NOT_EDITABLE";
+    public const string SectionDuplicate = "SECTION_DUPLICATE";
+
     // приглашения
     public const string InviteCodeInvalid = "INVITE_CODE_INVALID";
     public const string InviteCodeExpired = "INVITE_CODE_EXPIRED";

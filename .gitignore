@@ -65,3 +65,4 @@ infra/.deployed_tag
 infra/.previous_tag
 backups/
 AGENTS.md
+.tools*
