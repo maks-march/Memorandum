@@ -9,6 +9,9 @@ import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage/ForgotPasswordPag
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage/ResetPasswordPage';
 import { ProjectsPage } from '@/pages/ProjectsPage/ProjectsPage';
 import { NewProjectPage } from '@/pages/NewProjectPage/NewProjectPage';
+import { DocumentsPage } from '@/pages/DocumentsPage/DocumentsPage';
+import { NewDocumentPage } from '@/pages/NewDocumentPage/NewDocumentPage';
+import { ImportDocumentPage } from '@/pages/ImportDocumentPage/ImportDocumentPage';
 
 export default function App() {
   return (
@@ -27,10 +30,14 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
 
-        {/* Раздел проектов и личного кабинета с левым сайдбаром (макет Figma) */}
+        {/* Раздел проектов и документов с левым сайдбаром (макет Figma) */}
         <Route element={<DashboardLayout />}>
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/new" element={<NewProjectPage />} />
+          <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="/projects/:projectId/documents" element={<DocumentsPage />} />
+          <Route path="/projects/:projectId/documents/new" element={<NewDocumentPage />} />
+          <Route path="/projects/:projectId/documents/import" element={<ImportDocumentPage />} />
         </Route>
 
         {/* Фоллбек для любых других путей */}

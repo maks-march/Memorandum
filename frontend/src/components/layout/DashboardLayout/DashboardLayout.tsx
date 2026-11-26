@@ -1,6 +1,6 @@
 // frontend/src/components/layout/DashboardLayout/DashboardLayout.tsx
 import React, { useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { getCurrentUser, logoutUser, type UserProfile } from '@/api';
 import styles from './DashboardLayout.module.css';
 
@@ -14,6 +14,11 @@ import styles from './DashboardLayout.module.css';
 export const DashboardLayout: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const isDocumentsRoute =
+    pathname.startsWith('/documents') || /^\/projects\/[^/]+\/documents/.test(pathname);
+  const isProjectsRoute = pathname.startsWith('/projects') && !isDocumentsRoute;
 
   useEffect(() => {
     let isMounted = true;
@@ -57,11 +62,11 @@ export const DashboardLayout: React.FC = () => {
         </div>
 
         {/* Навигационное меню */}
-        <nav className={styles.nav}>
+        <nav className={styles.nav} aria-label="Основное меню">
           <NavLink
             to="/projects"
-            className={({ isActive }) =>
-              `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
+            className={() =>
+              `${styles.navItem} ${isProjectsRoute ? styles.navItemActive : ''}`
             }
           >
             Проекты
@@ -69,8 +74,8 @@ export const DashboardLayout: React.FC = () => {
 
           <NavLink
             to="/documents"
-            className={({ isActive }) =>
-              `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
+            className={() =>
+              `${styles.navItem} ${isDocumentsRoute ? styles.navItemActive : ''}`
             }
           >
             Документы

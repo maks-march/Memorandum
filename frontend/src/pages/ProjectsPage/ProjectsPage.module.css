@@ -172,6 +172,20 @@
   color: var(--color-text-primary);
 }
 
+.clickableRow {
+  cursor: pointer;
+}
+
+.projectLink {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.projectLink:hover {
+  color: var(--color-primary);
+}
+
 .projectAddress {
   color: #48484A;
 }

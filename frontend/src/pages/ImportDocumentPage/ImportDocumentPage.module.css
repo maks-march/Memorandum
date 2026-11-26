@@ -1,0 +1,208 @@
+/* frontend/src/pages/ImportDocumentPage/ImportDocumentPage.module.css */
+
+.container {
+  width: 100%;
+  max-width: 1100px;
+}
+
+.visuallyHidden:where(:not(:focus-within, :active)) {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.breadcrumbLink {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.breadcrumbLink:hover {
+  color: var(--color-primary);
+}
+
+.breadcrumbLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.title {
+  margin: 0 0 24px 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+/* Состояние 1: Область загрузки до импорта (пунктирная рамка по макету Figma) */
+.dropzone {
+  min-height: 210px;
+  padding: 40px 24px;
+  background-color: #FFFFFF;
+  border: 1.5px dashed #D2D2D7;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  text-align: center;
+  transition: border-color 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.dropzoneActive {
+  border-color: var(--color-primary);
+  background-color: #F5F9FF;
+}
+
+.dropzoneText {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Состояния 2 и 3: Карточка результата импорта (неподходящая / подходящая версия) */
+.resultCard {
+  padding: 28px 32px;
+  background-color: #FFFFFF;
+  border: 1px solid #E5E5EA;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.resultHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.fileName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  word-break: break-word;
+}
+
+.versionError {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-status-error);
+  white-space: nowrap;
+}
+
+.versionSuccess {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-status-success);
+  white-space: nowrap;
+}
+
+/* Текст ошибки без фоновой плашки — 1 в 1 по Figma */
+.errorTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-status-error);
+  line-height: 1.45;
+}
+
+.errorDetail {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-status-error);
+  line-height: 1.45;
+}
+
+/* Текст успешного переноса */
+.successText {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}
+
+.warningsList {
+  margin: 12px 0 0 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Кнопки действий (pill-форма по Figma) */
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+.primaryPillButton,
+.secondaryPillButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 24px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 9999px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease-out;
+}
+
+.primaryPillButton {
+  background-color: var(--color-primary);
+  color: #FFFFFF;
+}
+
+.primaryPillButton:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.primaryPillButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondaryPillButton {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.secondaryPillButton:hover {
+  background-color: #D5E7FF;
+}
+
+.primaryPillButton:focus-visible,
+.secondaryPillButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

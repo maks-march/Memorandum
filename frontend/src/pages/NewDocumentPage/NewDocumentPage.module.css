@@ -1,0 +1,249 @@
+/* frontend/src/pages/NewDocumentPage/NewDocumentPage.module.css */
+
+.container {
+  width: 100%;
+  max-width: 1100px;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.breadcrumbLink {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.breadcrumbLink:hover {
+  color: var(--color-primary);
+}
+
+.breadcrumbLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.title {
+  margin: 0 0 24px 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+/* Карточка создания записки по макету Figma */
+.card {
+  background-color: #FFFFFF;
+  border: 1px solid #E5E5EA;
+  border-radius: 12px;
+  padding: 28px 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.input {
+  width: 100%;
+  height: 42px;
+  padding: 0 14px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  background-color: #FFFFFF;
+  border: 1px solid #D2D2D7;
+  border-radius: 8px;
+  transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+
+.input::placeholder {
+  color: #8E8E93;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* Группа радиокнопок версий XML-схемы */
+.fieldset {
+  margin: 0;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.radioList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.radioCard,
+.radioCardActive {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  background-color: #FFFFFF;
+  transition: border-color 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.radioCard {
+  border: 1px solid #D2D2D7;
+}
+
+.radioCard:hover {
+  background-color: #FAFAFC;
+}
+
+.radioCardActive {
+  border: 1.5px solid var(--color-primary);
+}
+
+.radioInput {
+  -webkit-appearance: none;
+  appearance: none;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border-radius: 50%;
+  border: 1.5px solid #C7C7CC;
+  background-color: #FFFFFF;
+  cursor: pointer;
+  transition: border-color 0.15s ease-out, border-width 0.15s ease-out;
+}
+
+.radioInput:checked {
+  border: 5px solid var(--color-primary);
+  background-color: #FFFFFF;
+}
+
+.radioInput:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.radioText {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.radioCardActive .radioText {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.schemaLoading {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  padding: 10px 0;
+}
+
+.errorMessage {
+  font-size: 13px;
+  color: var(--color-status-error);
+  padding: 10px 14px;
+  background-color: #FFF5F5;
+  border: 1px solid #FFD1D5;
+  border-radius: 8px;
+}
+
+/* Кнопки действий внизу справа — pill-кнопки по макету Figma */
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.cancelButton,
+.submitButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 24px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 9999px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease-out;
+}
+
+.cancelButton {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.cancelButton:hover {
+  background-color: #D5E7FF;
+}
+
+.submitButton {
+  background-color: var(--color-primary);
+  color: #FFFFFF;
+}
+
+.submitButton:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.submitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancelButton:focus-visible,
+.submitButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

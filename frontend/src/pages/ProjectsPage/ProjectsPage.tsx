@@ -1,6 +1,6 @@
 // frontend/src/pages/ProjectsPage/ProjectsPage.tsx
 import React, { useEffect, useMemo, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { getProjects, type ProjectItem } from '@/api';
 import styles from './ProjectsPage.module.css';
 
@@ -10,9 +10,9 @@ import styles from './ProjectsPage.module.css';
  * - Живой поиск по названию/адресу
  * - Фильтрация по виду работ и типу объекта
  * - Кнопка «+ Новый проект»
- * - Работает как с бэкендом (/api/v1/projects), так и с локальным мок-хранилищем
  */
 export const ProjectsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -148,9 +148,24 @@ export const ProjectsPage: React.FC = () => {
               </tr>
             ) : (
               filteredProjects.map((project) => (
-                <tr key={project.id} className={styles.tableBodyRow}>
+                <tr
+                  key={project.id}
+                  className={`${styles.tableBodyRow} ${styles.clickableRow}`}
+                  onClick={() =>
+                    navigate(`/projects/${project.id}/documents`, {
+                      state: { projectName: project.name },
+                    })
+                  }
+                >
                   <td className={styles.td}>
-                    <span className={styles.projectName}>{project.name}</span>
+                    <Link
+                      to={`/projects/${project.id}/documents`}
+                      state={{ projectName: project.name }}
+                      className={styles.projectLink}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {project.name}
+                    </Link>
                   </td>
                   <td className={styles.td}>
                     <span className={styles.projectAddress}>{project.addressText}</span>

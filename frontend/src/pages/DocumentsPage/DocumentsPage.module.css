@@ -1,0 +1,434 @@
+/* frontend/src/pages/DocumentsPage/DocumentsPage.module.css */
+
+.container {
+  width: 100%;
+  max-width: 1100px;
+}
+
+.visuallyHidden:where(:not(:focus-within, :active)) {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+/* Хлебные крошки строго по макету «Документы проекта» */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.breadcrumbLink {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.breadcrumbLink:hover {
+  color: var(--color-primary);
+}
+
+.breadcrumbLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.breadcrumbCurrent {
+  color: var(--color-text-secondary);
+}
+
+/* Заголовок и правая группа кнопок */
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.primaryPillButton,
+.secondaryPillButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 22px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 9999px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease-out;
+}
+
+.primaryPillButton {
+  background-color: var(--color-primary);
+  color: #FFFFFF;
+}
+
+.primaryPillButton:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.secondaryPillButton {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.secondaryPillButton:hover {
+  background-color: #D5E7FF;
+}
+
+.primaryPillButton:focus-visible,
+.secondaryPillButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Панель поиска и фильтров */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.searchWrapper {
+  position: relative;
+  flex: 1 1 240px;
+  min-width: 220px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  color: #8E8E93;
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  height: 40px;
+  padding: 0 14px 0 38px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  background-color: #FFFFFF;
+  border: 1px solid #D2D2D7;
+  border-radius: 10px;
+  transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+
+.searchInput::placeholder {
+  color: #8E8E93;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.14);
+}
+
+.searchInput:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.select {
+  height: 40px;
+  padding: 0 34px 0 14px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  background-color: #FFFFFF;
+  border: 1px solid #D2D2D7;
+  border-radius: 10px;
+  cursor: pointer;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238E8E93' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  transition: border-color 0.15s ease-out;
+}
+
+.select::-ms-expand {
+  display: none;
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* Вторая строка фильтров: сортировка справа */
+.sortRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.sortLabel {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.sortSelect {
+  min-width: 240px;
+}
+
+/* Сообщение об ошибке действия */
+.actionError {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--color-status-error);
+  background-color: #FFF5F5;
+  border: 1px solid #FFD1D5;
+  border-radius: 8px;
+}
+
+/* Таблица документов */
+.tableWrapper {
+  position: relative;
+  background-color: #FFFFFF;
+  border: 1px solid #E5E5EA;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+@media (max-width: 900px) {
+  .tableWrapper {
+    overflow-x: auto;
+  }
+}
+
+.tableWrapper:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.tableHeadRow {
+  background-color: #FFFFFF;
+  border-bottom: 1px solid #E5E5EA;
+}
+
+.th {
+  padding: 14px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.thActions {
+  width: 56px;
+  padding: 14px 16px;
+}
+
+.tableBodyRow {
+  border-bottom: 1px solid #F0F0F2;
+  transition: background-color 0.12s ease-out;
+}
+
+.tableBodyRow:last-child {
+  border-bottom: none;
+}
+
+.tableBodyRow:hover {
+  background-color: #F9F9FB;
+}
+
+.td {
+  padding: 18px 20px;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  vertical-align: middle;
+}
+
+.tdActions {
+  padding: 12px 16px;
+  text-align: right;
+  vertical-align: middle;
+  position: relative;
+}
+
+.primaryLink {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.primaryLink:hover {
+  color: var(--color-primary);
+}
+
+.primaryLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.primaryCellText {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.docTitleText {
+  color: var(--color-text-primary);
+}
+
+.mutedText {
+  color: #48484A;
+}
+
+.dateText {
+  color: #48484A;
+  white-space: nowrap;
+}
+
+.schemaText {
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+/* Статусы — строго текстом в цвет макета Figma без плашек */
+.statusDraft {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.statusVerified {
+  color: var(--color-status-success);
+  white-space: nowrap;
+}
+
+.statusHasErrors {
+  color: var(--color-status-error);
+  white-space: nowrap;
+}
+
+.statusArchived {
+  color: var(--color-status-archive);
+  white-space: nowrap;
+}
+
+/* Кнопка и выпадающее меню строки (...) */
+.moreButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #8E8E93;
+  cursor: pointer;
+  transition: background-color 0.12s ease-out, color 0.12s ease-out;
+}
+
+.moreButton:hover {
+  background-color: #F2F2F7;
+  color: var(--color-text-primary);
+}
+
+.moreButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.rowMenu {
+  position: absolute;
+  right: 16px;
+  top: calc(100% - 8px);
+  z-index: 20;
+  min-width: 190px;
+  padding: 6px;
+  background-color: #FFFFFF;
+  border: 1px solid #E5E5EA;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rowMenuItem {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.rowMenuItem:hover {
+  background-color: #F5F5F7;
+}
+
+.rowMenuItem:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.emptyState {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
