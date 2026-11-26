@@ -1,0 +1,103 @@
+.page {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background-color: var(--color-bg-primary);
+}
+
+.brandPanel {
+  position: relative;
+  width: 45.14%;
+  min-width: 440px;
+  min-height: 100vh;
+  background-color: var(--color-primary);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.chevronBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.brandContent {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  padding: 50px 56px 56px;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  text-decoration: none;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.logoBracket {
+  font-weight: 700;
+}
+
+.logoText {
+  font-weight: 700;
+}
+
+.tagline {
+  margin: 0;
+  color: #ffffff;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+.formPanel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 32px;
+  background-color: var(--color-bg-primary);
+}
+
+.formContainer {
+  width: 100%;
+  max-width: 356px;
+}
+
+@media (max-width: 960px) {
+  .page {
+    flex-direction: column;
+  }
+
+  .brandPanel {
+    width: 100%;
+    min-width: 0;
+    min-height: 200px;
+  }
+
+  .brandContent {
+    padding: 28px 24px 32px;
+    gap: 28px;
+  }
+
+  .tagline {
+    font-size: 24px;
+  }
+
+  .formPanel {
+    padding: 36px 20px 48px;
+  }
+}
