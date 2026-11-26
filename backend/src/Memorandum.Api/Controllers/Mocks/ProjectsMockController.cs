@@ -5,10 +5,11 @@ using Memorandum.Api.Contracts.Projects;
 
 namespace Memorandum.Api.Controllers.Mocks;
 
-/// <summary>
-/// Заглушки проектов: фронт работает без БД. Ответы те же, что у реальных
-/// эндпоинтов, — DTO не меняется, меняется только источник данных.
-/// </summary>
+/// <summary>Заглушки проектов.</summary>
+/// <remarks>
+/// Ответы те же, что у реальных эндпоинтов: DTO не меняется, меняется только источник
+/// данных — фронт работает без БД.
+/// </remarks>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/mocks/projects")]

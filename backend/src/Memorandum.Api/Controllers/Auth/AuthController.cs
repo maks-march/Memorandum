@@ -16,7 +16,7 @@ using Memorandum.Application.Invitations.Models;
 
 namespace Memorandum.Api.Controllers.Auth;
 
-/// <summary>Регистрация, вход, выход и выдача анти-CSRF токена.</summary>
+/// <summary>Регистрация, вход и выход.</summary>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/auth")]
@@ -27,18 +27,23 @@ public sealed class AuthController(
     IInviteCodeService inviteCodeService,
     IAntiforgery antiforgery) : ControllerBase
 {
-    /// <summary>Анти-CSRF токен. Нужен до первого POST, поэтому доступен без входа.</summary>
+    /// <summary>Выдача анти-CSRF токена.</summary>
+    /// <remarks>
+    /// Нужен до первого POST, поэтому доступен без входа. Токен возвращается в теле,
+    /// cookie <c>XSRF-TOKEN</c> ставится тем же вызовом.
+    /// </remarks>
     /// <response code="200">Токен выдан; cookie <c>XSRF-TOKEN</c> установлена.</response>
     [HttpGet("csrf")]
     [AllowAnonymous]
     [ProducesResponseType<CsrfHttpResponse>(StatusCodes.Status200OK)]
     public ActionResult<CsrfHttpResponse> GetCsrfToken() => Ok(new CsrfHttpResponse(IssueAntiforgeryToken()));
 
-    /// <summary>
-    /// Регистрация. Вход не выполняет: cookie выдаёт <c>login</c>.
-    /// С <c>orgName</c> пользователь создаёт организацию и становится её администратором —
-    /// это единственный путь получить организацию без кода приглашения.
-    /// </summary>
+    /// <summary>Регистрация по email.</summary>
+    /// <remarks>
+    /// Вход не выполняет: cookie выдаёт <c>login</c>. С <c>orgName</c> пользователь создаёт
+    /// организацию и становится её администратором — это единственный путь получить
+    /// организацию без кода приглашения.
+    /// </remarks>
     /// <response code="201">Пользователь создан; заголовок Location ведёт на профиль.</response>
     /// <response code="400">Некорректные поля запроса.</response>
     /// <response code="409">Email уже зарегистрирован.</response>
@@ -66,10 +71,11 @@ public sealed class AuthController(
         return Created($"/api/v1/me", body);
     }
 
-    /// <summary>
-    /// Регистрация сотрудника по коду приглашения. Организация и роль берутся из кода,
-    /// код одноразовый. Вход, как и у обычной регистрации, отдельным вызовом.
-    /// </summary>
+    /// <summary>Регистрация по коду приглашения.</summary>
+    /// <remarks>
+    /// Организация и роль берутся из кода, код одноразовый. Вход, как и у обычной
+    /// регистрации, отдельным вызовом.
+    /// </remarks>
     /// <response code="201">Сотрудник создан и добавлен в организацию.</response>
     /// <response code="400">Некорректные поля или код не указан.</response>
     /// <response code="409">Email уже зарегистрирован.</response>
@@ -101,10 +107,11 @@ public sealed class AuthController(
         return Created($"/api/v1/me", body);
     }
 
-    /// <summary>
-    /// Код приглашения в свою организацию. Выдаёт только администратор организации;
-    /// новый код отменяет предыдущий, срок жизни — сутки, в хранилище лежит лишь хеш.
-    /// </summary>
+    /// <summary>Код приглашения в организацию.</summary>
+    /// <remarks>
+    /// Выдаёт только администратор организации; новый код отменяет предыдущий, срок жизни —
+    /// сутки, в хранилище лежит лишь хеш.
+    /// </remarks>
     /// <response code="200">Код выдан — показывается один раз.</response>
     /// <response code="400">Нельзя выдать такую роль.</response>
     /// <response code="401">Нет cookie или сессия отозвана.</response>
@@ -131,7 +138,8 @@ public sealed class AuthController(
             : result.Error.ToProblem(this);
     }
 
-    /// <summary>Вход по email и паролю. Ошибка не уточняет, что именно неверно.</summary>
+    /// <summary>Вход по email и паролю.</summary>
+    /// <remarks>Ошибка не уточняет, что именно неверно: email или пароль.</remarks>
     /// <response code="200">Cookie сессии и профиль.</response>
     /// <response code="401">Неверный email или пароль, либо учётная запись заблокирована.</response>
     [HttpPost("login")]
@@ -169,7 +177,8 @@ public sealed class AuthController(
             IssueAntiforgeryToken()));
     }
 
-    /// <summary>Выход: cookie сессии удаляется.</summary>
+    /// <summary>Выход из учётной записи.</summary>
+    /// <remarks>Cookie сессии удаляется.</remarks>
     /// <response code="204">Сессия завершена.</response>
     [HttpPost("logout")]
     [Authorize]
@@ -181,10 +190,11 @@ public sealed class AuthController(
         return NoContent();
     }
 
-    /// <summary>
-    /// Токен в теле и в cookie: после смены принципала (вход, выход) cookie антифоржери
-    /// привязывается к другому пользователю, токен нужно перевыпустить.
-    /// </summary>
+    /// <summary>Выдача токена.</summary>
+    /// <remarks>
+    /// После смены принципала (вход, выход) cookie антифоржери привязывается к другому
+    /// пользователю, поэтому токен перевыпускается.
+    /// </remarks>
     private string IssueAntiforgeryToken()
     {
         var tokens = antiforgery.GetAndStoreTokens(HttpContext);

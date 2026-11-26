@@ -11,7 +11,7 @@ namespace Memorandum.Api.Controllers;
 public sealed class HealthController(IConfiguration config, IHostEnvironment env, TimeProvider timeProvider)
     : ControllerBase
 {
-    /// <summary>Диагностический health: окружение, провайдер БД, версия сборки (в ней — git sha).</summary>
+    /// <summary>Диагностика сервиса.</summary>
     /// <response code="200">Сервис работает.</response>
     [HttpGet]
     [ProducesResponseType<HealthResponse>(StatusCodes.Status200OK)]

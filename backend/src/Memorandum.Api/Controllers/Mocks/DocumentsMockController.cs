@@ -5,7 +5,7 @@ using Memorandum.Api.Contracts.Projects;
 
 namespace Memorandum.Api.Controllers.Mocks;
 
-/// <summary>Заглушки пояснительных записок: карточка и разделы документа.</summary>
+/// <summary>Заглушки пояснительных записок.</summary>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/mocks/documents")]

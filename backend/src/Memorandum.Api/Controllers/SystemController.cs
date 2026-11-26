@@ -3,16 +3,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Memorandum.Api.Controllers;
 
-/// <summary>
-/// Сведения о версии API. Версия выбирается сегментом URL: <c>/api/v1/system/info</c>.
-/// </summary>
+/// <summary>Сведения о версии API.</summary>
+/// <remarks>Версия выбирается сегментом URL: <c>/api/v1/system/info</c>.</remarks>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/system")]
 [Tags("System")]
 public sealed class SystemController(IHostEnvironment env) : ControllerBase
 {
-    /// <summary>Версии API, поддерживаемые сервисом, и версия сборки.</summary>
+    /// <summary>Версии API и версия сборки.</summary>
     /// <response code="200">Информация о версии API.</response>
     [HttpGet("info")]
     [ProducesResponseType<SystemInfoResponse>(StatusCodes.Status200OK)]

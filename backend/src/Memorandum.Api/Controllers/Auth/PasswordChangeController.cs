@@ -11,16 +11,16 @@ using Memorandum.Application.PasswordChange.Models;
 
 namespace Memorandum.Api.Controllers.Auth;
 
-/// <summary>
-/// Смена пароля по коду из письма. Оба шага анонимные: пользователь ещё не вошёл.
-/// </summary>
+/// <summary>Смена пароля по коду.</summary>
+/// <remarks>Оба шага анонимные: пользователь ещё не вошёл.</remarks>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/auth/change-password")]
 [Tags("Auth")]
 public sealed class PasswordChangeController(IPasswordChangeService service) : ControllerBase
 {
-    /// <summary>Запрос кода на email. Ответ одинаков для известного и неизвестного адреса.</summary>
+    /// <summary>Запрос кода на email.</summary>
+    /// <remarks>Ответ одинаков для известного и неизвестного адреса.</remarks>
     /// <response code="204">Код отправлен (или адрес неизвестен — ответ тот же).</response>
     /// <response code="400">Некорректный email.</response>
     /// <response code="429">Код уже отправлен недавно; повторите позже.</response>
@@ -39,7 +39,7 @@ public sealed class PasswordChangeController(IPasswordChangeService service) : C
         return result.IsSuccess ? NoContent() : result.Error.ToProblem(this);
     }
 
-    /// <summary>Подтверждение кода и установка нового пароля.</summary>
+    /// <summary>Подтверждение кода новым паролём.</summary>
     /// <response code="204">Пароль изменён; ранее выданные сессии отозваны сменой SecurityStamp.</response>
     /// <response code="400">Неверный или истёкший код, попытки исчерпаны, невалидный пароль.</response>
     [HttpPost("{userId:long}")]
