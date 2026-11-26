@@ -35,7 +35,10 @@ public static class ErrorCodes
 
     // документы
     public const string DocumentNotEditable = "DOCUMENT_NOT_EDITABLE";
+    public const string DocumentNotVerified = "DOCUMENT_NOT_VERIFIED";
     public const string SectionDuplicate = "SECTION_DUPLICATE";
+    public const string SchemaMismatch = "SCHEMA_MISMATCH";
+    public const string SchemaVersionInactive = "SCHEMA_VERSION_INACTIVE";
 
     // приглашения
     public const string InviteCodeInvalid = "INVITE_CODE_INVALID";

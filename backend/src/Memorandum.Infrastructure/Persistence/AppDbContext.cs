@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Memorandum.Domain.Documents;
 using Memorandum.Domain.Organizations;
 using Memorandum.Domain.Projects;
+using Memorandum.Domain.Schemas;
 using Memorandum.Domain.Users;
 using Memorandum.Infrastructure.Persistence.DataProtection;
 
@@ -23,9 +25,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
 
-    public DbSet<ProjectDocument> ProjectDocuments => Set<ProjectDocument>();
+    public DbSet<Document> Documents => Set<Document>();
 
     public DbSet<DocumentSection> DocumentSections => Set<DocumentSection>();
+
+    public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
+
+    public DbSet<DocumentImport> DocumentImports => Set<DocumentImport>();
+
+    public DbSet<SchemaVersion> SchemaVersions => Set<SchemaVersion>();
 
     public DbSet<OrganizationInvitation> OrganizationInvitations => Set<OrganizationInvitation>();
 

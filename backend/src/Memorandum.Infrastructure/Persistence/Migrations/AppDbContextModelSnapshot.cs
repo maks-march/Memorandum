@@ -22,6 +22,279 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Memorandum.Domain.Documents.Document", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("CheckErrorCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("check_error_count");
+
+                    b.Property<string>("CheckErrorsJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("check_errors_json");
+
+                    b.Property<int>("CheckWarningCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("check_warning_count");
+
+                    b.Property<DateTime?>("CheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("checked_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_archived");
+
+                    b.Property<long>("ProjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("project_id");
+
+                    b.Property<long?>("ResponsibleUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("responsible_user_id");
+
+                    b.Property<string>("SchemaCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("schema_code");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("XmlSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("xml_sha256");
+
+                    b.Property<long?>("XmlSizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("xml_size_bytes");
+
+                    b.Property<bool?>("XmlValid")
+                        .HasColumnType("boolean")
+                        .HasColumnName("xml_valid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "IsArchived")
+                        .HasDatabaseName("ix_documents_project_id_is_archived");
+
+                    b.HasIndex("Status", "UpdatedAt")
+                        .HasDatabaseName("ix_documents_status_updated_at");
+
+                    b.ToTable("documents", (string)null);
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Documents.DocumentImport", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DetectedSchemaCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("detected_schema_code");
+
+                    b.Property<long>("DocumentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("document_id");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("file_name");
+
+                    b.Property<int>("ImportedFields")
+                        .HasColumnType("integer")
+                        .HasColumnName("imported_fields");
+
+                    b.Property<string>("OriginalFileKey")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("original_file_key");
+
+                    b.Property<string>("OriginalFileSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("original_file_sha256");
+
+                    b.Property<long?>("OriginalFileSizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("original_file_size_bytes");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("WarningsJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("warnings_json");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentId")
+                        .HasDatabaseName("ix_document_imports_document_id");
+
+                    b.ToTable("document_imports", (string)null);
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Documents.DocumentSection", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DataJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("data_json");
+
+                    b.Property<long>("DocumentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("document_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_document_sections_document_id_code");
+
+                    b.ToTable("document_sections", (string)null);
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Documents.DocumentVersion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("comment");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DataJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("data_json");
+
+                    b.Property<long>("DocumentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("document_id");
+
+                    b.Property<bool>("IsAuto")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_auto");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("ux_document_versions_document_id_number");
+
+                    b.ToTable("document_versions", (string)null);
+                });
+
             modelBuilder.Entity("Memorandum.Domain.Organizations.Organization", b =>
                 {
                     b.Property<long>("Id")
@@ -213,61 +486,6 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                     b.ToTable("organization_memberships", (string)null);
                 });
 
-            modelBuilder.Entity("Memorandum.Domain.Projects.DocumentSection", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("DataJson")
-                        .HasColumnType("jsonb")
-                        .HasColumnName("data_json");
-
-                    b.Property<long>("DocumentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("document_id");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("title");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("updated_by");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DocumentId", "Code")
-                        .IsUnique()
-                        .HasDatabaseName("ux_document_sections_document_id_code");
-
-                    b.ToTable("document_sections", (string)null);
-                });
-
             modelBuilder.Entity("Memorandum.Domain.Projects.Project", b =>
                 {
                     b.Property<long>("Id")
@@ -334,62 +552,6 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                     b.ToTable("projects", (string)null);
                 });
 
-            modelBuilder.Entity("Memorandum.Domain.Projects.ProjectDocument", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<bool>("IsArchived")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_archived");
-
-                    b.Property<long>("ProjectId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("project_id");
-
-                    b.Property<string>("SchemaCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("schema_code");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)")
-                        .HasColumnName("status");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("title");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("updated_by");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjectId", "IsArchived")
-                        .HasDatabaseName("ix_project_documents_project_id_is_archived");
-
-                    b.ToTable("project_documents", (string)null);
-                });
-
             modelBuilder.Entity("Memorandum.Domain.Projects.ProjectMember", b =>
                 {
                     b.Property<long>("Id")
@@ -434,6 +596,75 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasFilter("\"is_active\"");
 
                     b.ToTable("project_members", (string)null);
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Schemas.SchemaVersion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("EffectiveFrom")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_from");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_default");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at");
+
+                    b.Property<string>("Sha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_schema_versions_code");
+
+                    b.HasIndex("IsDefault")
+                        .IsUnique()
+                        .HasDatabaseName("ux_schema_versions_is_default")
+                        .HasFilter("is_default");
+
+                    b.ToTable("schema_versions", (string)null);
                 });
 
             modelBuilder.Entity("Memorandum.Domain.Users.Credential", b =>
@@ -589,6 +820,54 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                     b.ToTable("data_protection_keys", (string)null);
                 });
 
+            modelBuilder.Entity("Memorandum.Domain.Documents.Document", b =>
+                {
+                    b.HasOne("Memorandum.Domain.Projects.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_documents_projects");
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Documents.DocumentImport", b =>
+                {
+                    b.HasOne("Memorandum.Domain.Documents.Document", "Document")
+                        .WithMany("Imports")
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_document_imports_documents");
+
+                    b.Navigation("Document");
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Documents.DocumentSection", b =>
+                {
+                    b.HasOne("Memorandum.Domain.Documents.Document", "Document")
+                        .WithMany("Sections")
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_document_sections_documents");
+
+                    b.Navigation("Document");
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Documents.DocumentVersion", b =>
+                {
+                    b.HasOne("Memorandum.Domain.Documents.Document", "Document")
+                        .WithMany("Versions")
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_document_versions_documents");
+
+                    b.Navigation("Document");
+                });
+
             modelBuilder.Entity("Memorandum.Domain.Organizations.OrganizationInvitation", b =>
                 {
                     b.HasOne("Memorandum.Domain.Users.User", null)
@@ -628,18 +907,6 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Memorandum.Domain.Projects.DocumentSection", b =>
-                {
-                    b.HasOne("Memorandum.Domain.Projects.ProjectDocument", "Document")
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_document_sections_project_documents");
-
-                    b.Navigation("Document");
-                });
-
             modelBuilder.Entity("Memorandum.Domain.Projects.Project", b =>
                 {
                     b.HasOne("Memorandum.Domain.Organizations.Organization", "Organization")
@@ -656,18 +923,6 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_projects_responsible_user");
 
                     b.Navigation("Organization");
-                });
-
-            modelBuilder.Entity("Memorandum.Domain.Projects.ProjectDocument", b =>
-                {
-                    b.HasOne("Memorandum.Domain.Projects.Project", "Project")
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_project_documents_projects");
-
-                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("Memorandum.Domain.Projects.ProjectMember", b =>
@@ -687,6 +942,127 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_project_members_users");
 
                     b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Schemas.SchemaVersion", b =>
+                {
+                    b.OwnsMany("Memorandum.Domain.Schemas.SchemaField", "Fields", b1 =>
+                        {
+                            b1.Property<long>("schema_version_id")
+                                .HasColumnType("bigint");
+
+                            b1.Property<string>("FieldId")
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("field_id");
+
+                            b1.Property<string>("Dictionary")
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)")
+                                .HasColumnName("dictionary");
+
+                            b1.Property<string>("Format")
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)")
+                                .HasColumnName("format");
+
+                            b1.Property<string>("Group")
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("field_group");
+
+                            b1.Property<string>("Hint")
+                                .HasMaxLength(500)
+                                .HasColumnType("character varying(500)")
+                                .HasColumnName("hint");
+
+                            b1.Property<string>("Kind")
+                                .IsRequired()
+                                .HasMaxLength(16)
+                                .HasColumnType("character varying(16)")
+                                .HasColumnName("kind");
+
+                            b1.Property<string>("Label")
+                                .IsRequired()
+                                .HasMaxLength(300)
+                                .HasColumnType("character varying(300)")
+                                .HasColumnName("label");
+
+                            b1.Property<bool>("Required")
+                                .HasColumnType("boolean")
+                                .HasColumnName("required");
+
+                            b1.Property<string>("Section")
+                                .IsRequired()
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)")
+                                .HasColumnName("section");
+
+                            b1.Property<int>("SortOrder")
+                                .HasColumnType("integer")
+                                .HasColumnName("sort_order");
+
+                            b1.Property<string>("XmlPath")
+                                .HasMaxLength(500)
+                                .HasColumnType("character varying(500)")
+                                .HasColumnName("xml_path");
+
+                            b1.HasKey("schema_version_id", "FieldId");
+
+                            b1.ToTable("schema_fields", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("schema_version_id");
+                        });
+
+                    b.OwnsMany("Memorandum.Domain.Schemas.SchemaFile", "Files", b1 =>
+                        {
+                            b1.Property<long>("schema_version_id")
+                                .HasColumnType("bigint");
+
+                            b1.Property<string>("Path")
+                                .HasMaxLength(300)
+                                .HasColumnType("character varying(300)")
+                                .HasColumnName("path");
+
+                            b1.Property<string>("Kind")
+                                .IsRequired()
+                                .HasMaxLength(16)
+                                .HasColumnType("character varying(16)")
+                                .HasColumnName("kind");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("name");
+
+                            b1.Property<string>("Sha256")
+                                .IsRequired()
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)")
+                                .HasColumnName("sha256");
+
+                            b1.Property<long>("SizeBytes")
+                                .HasColumnType("bigint")
+                                .HasColumnName("size_bytes");
+
+                            b1.Property<string>("StoredKey")
+                                .HasMaxLength(300)
+                                .HasColumnType("character varying(300)")
+                                .HasColumnName("stored_key");
+
+                            b1.HasKey("schema_version_id", "Path");
+
+                            b1.ToTable("schema_files", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("schema_version_id");
+                        });
+
+                    b.Navigation("Fields");
+
+                    b.Navigation("Files");
                 });
 
             modelBuilder.Entity("Memorandum.Domain.Users.Credential", b =>
@@ -710,6 +1086,15 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_users_active_organization");
 
                     b.Navigation("ActiveOrganization");
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Documents.Document", b =>
+                {
+                    b.Navigation("Imports");
+
+                    b.Navigation("Sections");
+
+                    b.Navigation("Versions");
                 });
 
             modelBuilder.Entity("Memorandum.Domain.Organizations.Organization", b =>

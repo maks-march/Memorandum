@@ -1,10 +1,10 @@
 using Memorandum.Domain.Common;
 
-namespace Memorandum.Domain.Projects;
+namespace Memorandum.Domain.Documents;
 
 /// <summary>
 /// Раздел пояснительной записки: «Сведения об объекте», «ТЭП», «Состав документации» и т. д.
-/// Разделы задаются кодом, а не свободным текстом: по нему документ раскладывается в XML.
+/// Часть агрегата <see cref="Document"/>: создаётся и заполняется только через него.
 /// </summary>
 public sealed class DocumentSection : AuditableEntity
 {
@@ -18,9 +18,26 @@ public sealed class DocumentSection : AuditableEntity
     {
     }
 
+    internal DocumentSection(
+        Document document,
+        string code,
+        string? title,
+        int sortOrder,
+        DateTime utcNow,
+        string? createdBy = null)
+    {
+        Document = document;
+        DocumentId = document.Id;
+        Code = code;
+        Title = Guard.Required(title, "Название раздела", TitleMaxLength);
+        SortOrder = GuardSortOrder(sortOrder);
+
+        MarkCreated(utcNow, createdBy);
+    }
+
     public long DocumentId { get; private set; }
 
-    public ProjectDocument Document { get; private set; } = null!;
+    public Document Document { get; private set; } = null!;
 
     /// <summary>Код раздела по схеме (например «object-info», «tep», «composition»).</summary>
     public string Code { get; private set; } = null!;
@@ -32,34 +49,8 @@ public sealed class DocumentSection : AuditableEntity
     /// <summary>Содержимое раздела. Структура полей определяется схемой, поэтому хранится как есть.</summary>
     public string? DataJson { get; private set; }
 
-    public static DocumentSection Create(
-        ProjectDocument document,
-        string? code,
-        string? title,
-        int sortOrder,
-        DateTime utcNow,
-        string? createdBy = null)
-    {
-        ArgumentNullException.ThrowIfNull(document);
-
-        if (document.IsArchived)
-            throw new ConflictException(ErrorCodes.DocumentNotEditable, "Нельзя изменить архивный документ.");
-
-        var section = new DocumentSection
-        {
-            Document = document,
-            DocumentId = document.Id,
-            Code = Guard.Required(code, "Код раздела", CodeMaxLength),
-            Title = Guard.Required(title, "Название раздела", TitleMaxLength),
-            SortOrder = GuardSortOrder(sortOrder),
-        };
-
-        section.MarkCreated(utcNow, createdBy);
-        return section;
-    }
-
     /// <summary>Заполнение раздела. Пустое значение очищает содержимое.</summary>
-    public void Fill(string? dataJson, DateTime utcNow, string? updatedBy = null)
+    internal void Fill(string? dataJson, DateTime utcNow, string? updatedBy = null)
     {
         if (Document.IsArchived)
             throw new ConflictException(ErrorCodes.DocumentNotEditable, "Нельзя изменить архивный документ.");

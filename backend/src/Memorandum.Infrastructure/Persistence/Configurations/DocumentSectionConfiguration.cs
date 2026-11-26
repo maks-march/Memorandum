@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Memorandum.Domain.Projects;
+using Memorandum.Domain.Documents;
 
 namespace Memorandum.Infrastructure.Persistence.Configurations;
 
@@ -36,9 +36,9 @@ public sealed class DocumentSectionConfiguration : IEntityTypeConfiguration<Docu
             .HasColumnType("jsonb");
 
         builder.HasOne(section => section.Document)
-            .WithMany()
+            .WithMany(document => document.Sections)
             .HasForeignKey(section => section.DocumentId)
-            .HasConstraintName("fk_document_sections_project_documents")
+            .HasConstraintName("fk_document_sections_documents")
             .OnDelete(DeleteBehavior.Cascade);
 
         // Раздел в документе один на код; порядок — отдельная колонка.
