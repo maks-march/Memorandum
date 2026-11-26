@@ -8,6 +8,31 @@
   font-family: var(--font-sans);
 }
 
+/* Мобильная шапка (скрыта на десктопе, активна при ширине <= 900px) */
+.mobileHeader {
+  display: none;
+}
+
+.hamburgerButton {
+  display: none;
+}
+
+.mobileLogo {
+  display: none;
+}
+
+.mobileUser {
+  display: none;
+}
+
+.mobileBackdrop {
+  display: none;
+}
+
+.closeDrawerButton {
+  display: none;
+}
+
 /* Боковая панель (Сайдбар) по макету Figma (260px) */
 .sidebar {
   width: 260px;
@@ -21,15 +46,14 @@
   user-select: none;
 }
 
-/* Декоративный шеврон `<` на фоне сайдбара строго по макету */
+/* Декоративный геометрический шеврон `>` на фоне сайдбара строго по макету Figma */
 .chevronBg {
   position: absolute;
   left: 0;
-  top: 180px;
+  top: 292px;
   width: 260px;
-  height: 540px;
+  height: 610px;
   pointer-events: none;
-  opacity: 0.05;
   z-index: 1;
 }
 
@@ -37,12 +61,15 @@
   padding: 28px 24px 20px 24px;
   position: relative;
   z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .logo {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   text-decoration: none;
   font-size: 18px;
   font-weight: 700;
@@ -50,9 +77,9 @@
   letter-spacing: -0.02em;
 }
 
-.logoBracket {
-  color: var(--color-primary);
-  font-weight: 700;
+.logoBracketIcon {
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .logoText {
@@ -86,9 +113,10 @@
   background-color: rgba(0, 0, 0, 0.04);
 }
 
-.navItemActive {
-  background-color: #FFFFFF;
-  color: var(--color-primary);
+.navItemActive,
+.navItemActive:hover {
+  background-color: #FFFFFF !important;
+  color: var(--color-primary) !important;
   font-weight: 600;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
@@ -134,8 +162,144 @@
 /* Основная рабочая область */
 .main {
   flex: 1;
+  min-width: 0;
   background-color: #FFFFFF;
   min-height: 100vh;
   padding: 40px 48px;
   overflow-y: auto;
 }
+
+/* Адаптивные стили для планшетов */
+@media (max-width: 1024px) {
+  .main {
+    padding: 28px 24px;
+  }
+}
+
+/* Адаптивные стили для мобильных устройств (шторка сайдбара и топбар) */
+@media (max-width: 900px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .mobileHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    padding: 0 16px;
+    background-color: #FFFFFF;
+    border-bottom: 1px solid #E5E5EA;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    flex-shrink: 0;
+  }
+
+  .hamburgerButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    border-radius: 8px;
+  }
+
+  .hamburgerButton:hover {
+    background-color: #F5F5F7;
+  }
+
+  .mobileLogo {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    letter-spacing: -0.02em;
+  }
+
+  .mobileUser {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobileBackdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    z-index: 199;
+    backdrop-filter: blur(2px);
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 280px;
+    max-width: 85vw;
+    height: 100vh;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+  }
+
+  .sidebarOpen {
+    transform: translateX(0);
+  }
+
+  .sidebarHeader {
+    padding: 20px 20px 16px;
+  }
+
+  .closeDrawerButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    border-radius: 8px;
+  }
+
+  .closeDrawerButton:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--color-text-primary);
+  }
+
+  .main {
+    padding: 20px 16px;
+    min-height: calc(100vh - 56px);
+    width: 100%;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+

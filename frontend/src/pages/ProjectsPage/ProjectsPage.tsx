@@ -95,6 +95,7 @@ export const ProjectsPage: React.FC = () => {
         {/* Выпадающий список «Вид работ» */}
         <select
           className={styles.select}
+          style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
           value={workTypeFilter}
           onChange={(e) => setWorkTypeFilter(e.target.value)}
           aria-label="Фильтр по виду работ"
@@ -110,6 +111,7 @@ export const ProjectsPage: React.FC = () => {
         {/* Выпадающий список «Все объекты» */}
         <select
           className={styles.select}
+          style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
           value={objectFilter}
           onChange={(e) => setObjectFilter(e.target.value)}
           aria-label="Фильтр по типам объектов"
@@ -137,13 +139,15 @@ export const ProjectsPage: React.FC = () => {
             {loading ? (
               <tr>
                 <td colSpan={5} className={styles.emptyState}>
-                  Загрузка проектов...
+                  <div className={styles.emptyStateInner}>Загрузка проектов...</div>
                 </td>
               </tr>
             ) : filteredProjects.length === 0 ? (
               <tr>
                 <td colSpan={5} className={styles.emptyState}>
-                  {errorMessage || 'Проекты не найдены. Попробуйте изменить параметры поиска или фильтрации.'}
+                  <div className={styles.emptyStateInner}>
+                    {errorMessage || 'Проекты не найдены. Попробуйте изменить параметры поиска или фильтрации.'}
+                  </div>
                 </td>
               </tr>
             ) : (

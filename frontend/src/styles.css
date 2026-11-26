@@ -19,7 +19,7 @@
 
   --color-status-success: #49AE70;
   --color-status-error: #C00014;
-  --color-status-archive: #D6B85C;
+  --color-status-archive: #D8BB5C;
 }
 
 * {
@@ -35,4 +35,14 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+select::-ms-expand {
+  display: none;
 }

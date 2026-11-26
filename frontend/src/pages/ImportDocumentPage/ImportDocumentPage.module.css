@@ -206,3 +206,30 @@
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+@media (max-width: 640px) {
+  .resultCard {
+    padding: 20px 16px;
+  }
+
+  .dropzone {
+    padding: 28px 16px;
+  }
+
+  .resultHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .cardActions {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .primaryPillButton,
+  .secondaryPillButton {
+    width: 100%;
+  }
+}

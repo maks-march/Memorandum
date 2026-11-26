@@ -1,0 +1,49 @@
+/* frontend/src/pages/OrganizationPage/OrganizationPage.module.css */
+
+.container {
+  width: 100%;
+  max-width: 860px;
+}
+
+.title {
+  margin: 0 0 24px 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+}
+
+.card {
+  background-color: #FFFFFF;
+  border: 1px solid #E5E5EA;
+  border-radius: 12px;
+  padding: 32px 36px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 20px 16px;
+  }
+}

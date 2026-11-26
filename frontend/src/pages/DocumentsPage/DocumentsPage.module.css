@@ -168,6 +168,7 @@
 
 .select {
   height: 40px;
+  line-height: 38px;
   padding: 0 34px 0 14px;
   font-family: inherit;
   font-size: 14px;
@@ -235,13 +236,9 @@
   background-color: #FFFFFF;
   border: 1px solid #E5E5EA;
   border-radius: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-}
-
-@media (max-width: 900px) {
-  .tableWrapper {
-    overflow-x: auto;
-  }
 }
 
 .tableWrapper:focus-visible {
@@ -251,6 +248,7 @@
 
 .table {
   width: 100%;
+  min-width: 780px;
   border-collapse: collapse;
   text-align: left;
 }
@@ -431,4 +429,60 @@
   text-align: center;
   color: var(--color-text-secondary);
   font-size: 14px;
+}
+
+.emptyStateInner {
+  position: sticky;
+  left: 0;
+  width: 100%;
+  max-width: calc(100vw - 48px);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Адаптивность для мобильных экранов */
+@media (max-width: 640px) {
+  .headerRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .headerActions {
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .primaryPillButton,
+  .secondaryPillButton {
+    width: 100%;
+  }
+
+  .toolbar {
+    gap: 8px;
+  }
+
+  .searchWrapper {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .select {
+    width: 100%;
+  }
+
+  .sortRow {
+    justify-content: space-between;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .sortSelect {
+    flex: 1;
+    min-width: 160px;
+  }
 }

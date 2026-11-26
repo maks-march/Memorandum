@@ -44,6 +44,11 @@
   opacity: 0.9;
 }
 
+.bracketIcon {
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 .bracket {
   font-weight: 800;
   color: var(--color-text-primary, #1d1d1f);
@@ -87,7 +92,7 @@
   color: #ffffff;
   font-size: 0.875rem;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: 9999px;
   text-decoration: none;
   transition: background-color 0.15s ease, transform 0.05s ease;
   border: none;

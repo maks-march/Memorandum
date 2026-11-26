@@ -28,12 +28,12 @@
   justify-content: center;
   gap: 8px;
   height: 40px;
-  padding: 0 20px;
+  padding: 0 22px;
   background-color: var(--color-primary);
   color: #FFFFFF;
   font-size: 14px;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: 9999px;
   text-decoration: none;
   border: none;
   cursor: pointer;
@@ -94,6 +94,7 @@
 
 .select {
   height: 40px;
+  line-height: 38px;
   padding: 0 34px 0 14px;
   background-color: #FFFFFF;
   border: 1px solid #D2D2D7;
@@ -124,12 +125,14 @@
   background-color: #FFFFFF;
   border: 1px solid #E5E5EA;
   border-radius: 12px;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .table {
   width: 100%;
+  min-width: 680px;
   border-collapse: collapse;
   text-align: left;
 }
@@ -209,4 +212,43 @@
   text-align: center;
   color: var(--color-text-secondary);
   font-size: 14px;
+}
+
+.emptyStateInner {
+  position: sticky;
+  left: 0;
+  width: 100%;
+  max-width: calc(100vw - 48px);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Адаптивность для мобильных экранов */
+@media (max-width: 640px) {
+  .headerRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .createButton {
+    width: 100%;
+  }
+
+  .toolbar {
+    gap: 10px;
+  }
+
+  .searchWrapper {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .select {
+    width: 100%;
+    flex: 1 1 100%;
+  }
 }

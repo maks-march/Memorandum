@@ -69,7 +69,10 @@ export const NewDocumentPage: React.FC = () => {
     };
   }, []);
 
-  const projectDocsUrl = `/projects/${numericProjectId}/documents`;
+  const projectDocsUrl =
+    !Number.isNaN(numericProjectId) && numericProjectId > 0
+      ? `/projects/${numericProjectId}/documents`
+      : '/documents';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

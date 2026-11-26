@@ -12,6 +12,8 @@ import { NewProjectPage } from '@/pages/NewProjectPage/NewProjectPage';
 import { DocumentsPage } from '@/pages/DocumentsPage/DocumentsPage';
 import { NewDocumentPage } from '@/pages/NewDocumentPage/NewDocumentPage';
 import { ImportDocumentPage } from '@/pages/ImportDocumentPage/ImportDocumentPage';
+import { OrganizationPage } from '@/pages/OrganizationPage/OrganizationPage';
+import { AdminPage } from '@/pages/AdminPage/AdminPage';
 
 export default function App() {
   return (
@@ -38,6 +40,8 @@ export default function App() {
           <Route path="/projects/:projectId/documents" element={<DocumentsPage />} />
           <Route path="/projects/:projectId/documents/new" element={<NewDocumentPage />} />
           <Route path="/projects/:projectId/documents/import" element={<ImportDocumentPage />} />
+          <Route path="/organization" element={<OrganizationPage />} />
+          <Route path="/admin" element={<AdminPage />} />
         </Route>
 
         {/* Фоллбек для любых других путей */}

@@ -137,6 +137,7 @@ export const NewProjectPage: React.FC = () => {
               <select
                 id="responsible"
                 className={styles.select}
+                style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 value={responsibleId ?? currentUser?.id ?? ''}
                 onChange={(e) => setResponsibleId(Number(e.target.value) || null)}
               >
@@ -188,6 +189,7 @@ export const NewProjectPage: React.FC = () => {
               <select
                 id="workType"
                 className={styles.select}
+                style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 value={workType}
                 onChange={(e) => setWorkType(e.target.value)}
               >

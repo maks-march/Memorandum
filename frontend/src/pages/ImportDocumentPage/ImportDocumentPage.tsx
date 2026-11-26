@@ -75,7 +75,10 @@ export const ImportDocumentPage: React.FC = () => {
     document.title = 'Импорт XML | Memorandum';
   }, []);
 
-  const projectDocsUrl = `/projects/${numericProjectId}/documents`;
+  const projectDocsUrl =
+    !Number.isNaN(numericProjectId) && numericProjectId > 0
+      ? `/projects/${numericProjectId}/documents`
+      : '/documents';
 
   const processFile = async (file: File) => {
     if (Number.isNaN(numericProjectId)) {

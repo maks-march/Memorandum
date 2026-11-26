@@ -32,8 +32,8 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
-    // После успешного входа переходим в рабочее пространство (пока на главную, далее на /projects)
-    navigate('/');
+    // После успешного входа переходим в рабочее пространство на /projects
+    navigate('/projects');
   };
 
   return (

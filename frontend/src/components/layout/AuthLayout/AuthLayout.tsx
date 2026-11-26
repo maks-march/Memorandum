@@ -26,9 +26,39 @@ export const AuthLayout: React.FC = () => {
 
         <div className={styles.brandContent}>
           <Link to="/" className={styles.logo}>
-            <span className={styles.logoBracket}>&lt;</span>
+            <svg
+              className={styles.bracketIcon}
+              width="10"
+              height="18"
+              viewBox="0 0 10 18"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M8 2L2 9L8 16"
+                stroke="currentColor"
+                strokeWidth="2.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
             <span className={styles.logoText}>Memorandum</span>
-            <span className={styles.logoBracket}>&gt;</span>
+            <svg
+              className={styles.bracketIcon}
+              width="10"
+              height="18"
+              viewBox="0 0 10 18"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M2 2L8 9L2 16"
+                stroke="currentColor"
+                strokeWidth="2.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </Link>
 
           <p className={styles.tagline}>

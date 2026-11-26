@@ -14,9 +14,39 @@ export const Header: React.FC = () => {
       <div className={styles.container}>
         {/* Логотип: < Memorandum > */}
         <NavLink to="/" className={styles.logo}>
-          <span className={styles.bracket}>&lt;</span>
+          <svg
+            className={styles.bracketIcon}
+            width="10"
+            height="18"
+            viewBox="0 0 10 18"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M8 2L2 9L8 16"
+              stroke="#1C1C1E"
+              strokeWidth="2.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
           <span className={styles.logoText}>Memorandum</span>
-          <span className={styles.bracket}>&gt;</span>
+          <svg
+            className={styles.bracketIcon}
+            width="10"
+            height="18"
+            viewBox="0 0 10 18"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M2 2L8 9L2 16"
+              stroke="#1C1C1E"
+              strokeWidth="2.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </NavLink>
 
         {/* Действия справа: Войти + Регистрация (Вариант Б) */}

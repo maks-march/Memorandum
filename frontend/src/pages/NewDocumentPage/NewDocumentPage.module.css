@@ -247,3 +247,20 @@
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+@media (max-width: 640px) {
+  .card {
+    padding: 20px 16px;
+  }
+
+  .actions {
+    flex-direction: column-reverse;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .cancelButton,
+  .submitButton {
+    width: 100%;
+  }
+}

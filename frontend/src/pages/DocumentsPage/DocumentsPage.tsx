@@ -335,6 +335,7 @@ export const DocumentsPage: React.FC = () => {
         {!isProjectView && (
           <select
             className={styles.select}
+            style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
             value={organizationFilter}
             onChange={(e) => setOrganizationFilter(e.target.value)}
             aria-label="Организация"
@@ -350,6 +351,7 @@ export const DocumentsPage: React.FC = () => {
 
         <select
           className={styles.select}
+          style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
           value={authorFilter}
           onChange={(e) => setAuthorFilter(e.target.value)}
           aria-label="Автор"
@@ -364,6 +366,7 @@ export const DocumentsPage: React.FC = () => {
 
         <select
           className={styles.select}
+          style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           aria-label="Статус"
@@ -377,6 +380,7 @@ export const DocumentsPage: React.FC = () => {
 
         <select
           className={styles.select}
+          style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
           value={schemaFilter}
           onChange={(e) => setSchemaFilter(e.target.value)}
           aria-label="Схема XML"
@@ -398,6 +402,7 @@ export const DocumentsPage: React.FC = () => {
         <select
           id={sortSelectId}
           className={`${styles.select} ${styles.sortSelect}`}
+          style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
         >
@@ -460,13 +465,15 @@ export const DocumentsPage: React.FC = () => {
             {loading ? (
               <tr>
                 <td colSpan={columnCount} className={styles.emptyState}>
-                  Загрузка документов...
+                  <div className={styles.emptyStateInner}>Загрузка документов...</div>
                 </td>
               </tr>
             ) : visibleDocuments.length === 0 ? (
               <tr>
                 <td colSpan={columnCount} className={styles.emptyState}>
-                  {errorMessage || 'Документы не найдены.'}
+                  <div className={styles.emptyStateInner}>
+                    {errorMessage || 'Документы не найдены.'}
+                  </div>
                 </td>
               </tr>
             ) : (
