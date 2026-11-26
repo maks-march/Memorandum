@@ -20,10 +20,6 @@ internal static class ApplicationPipelineExtensions
 
         app.UseRateLimiter();
 
-        // До антифоржери: токен из cookie перекладывается в заголовок,
-        // чтобы клиенту не приходилось делать это самому.
-        app.UseAntiforgeryCookie();
-
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseAntiforgery();

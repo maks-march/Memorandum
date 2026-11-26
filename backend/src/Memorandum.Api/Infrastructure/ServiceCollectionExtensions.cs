@@ -84,30 +84,21 @@ internal static class ServiceCollectionExtensions
 
     public const string DevCorsPolicy = "dev";
 
-    /// <summary>Cookie с антифоржери-токеном: отправляется браузером сама, руками её не дублируем.</summary>
+    /// <summary>Cookie с антифоржери-токеном: браузер отправляет её вместе с заголовком.</summary>
     public const string AntiforgeryCookieName = "XSRF-TOKEN";
 
-    /// <summary>
-    /// Антифоржери на cookie вместо заголовка.
-    /// <para>
-    /// ASP.NET умеет принимать токен из поля формы или заголовка, поэтому пара
-    /// «cookie + заголовок» до сих пор была единственным способом. Сейчас токен
-    /// едет только в cookie: клиенту не нужно читать его из ответа и подставлять
-    /// в <c>X-XSRF-TOKEN</c>. Сравнение «двойная отправка» при этом сохраняется:
-    /// cookie читается на том же origin, где выставляется, а сторонний сайт её
-    /// отправить не может (SameSite=Lax + отсутствие CORS в Production).
-    /// </para>
-    /// <para>
-    /// Компромисс: защита ослабевает до SameSite — при XSS токен тоже доступен.
-    /// Поэтому <c>HttpOnly</c> остаётся выключенным (если токен читает фронт),
-    /// а <c>Secure</c> и <c>SameSite=Lax</c> обязательны.
-    /// </para>
-    /// </summary>
+    /// <summary>Заголовок, в который клиент кладёт токен из <c>GET /api/v1/auth/csrf</c>.</summary>
+    public const string AntiforgeryHeaderName = "X-XSRF-TOKEN";
+
+    /// <summary>Двойная отправка: cookie и тот же токен в заголовке.</summary>
+    /// <remarks>
+    /// Заголовок <c>X-XSRF-TOKEN</c> ставит клиент, сервер его не подставляет: иначе
+    /// сторонний сайт мог бы рассчитывать на cookie браузера, и защита сводилась бы
+    /// к <c>SameSite</c>. <c>HttpOnly</c> выключен — токен читает фронт.
+    /// </remarks>
     private static void ConfigureAntiforgery(AntiforgeryOptions options, IWebHostEnvironment environment)
     {
-        // Имя заголовка штатное: его подставляет middleware AntiforgeryCookieMiddleware,
-        // поэтому фронту не нужно знать про токен вообще.
-        options.HeaderName = AntiforgeryCookieMiddleware.HeaderName;
+        options.HeaderName = AntiforgeryHeaderName;
         options.FormFieldName = "__RequestVerificationToken";
         options.Cookie.Name = AntiforgeryCookieName;
         options.Cookie.HttpOnly = false;
