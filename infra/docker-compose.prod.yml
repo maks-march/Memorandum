@@ -86,6 +86,13 @@ services:
       PasswordReset__CodePepper: "${PASSWORD_RESET_PEPPER:?задайте PASSWORD_RESET_PEPPER в infra/.env}"
       # та же соль для кодов приглашения: при смене выданные коды перестают действовать
       Invitations__CodePepper: "${PASSWORD_RESET_PEPPER:?задайте PASSWORD_RESET_PEPPER в infra/.env}"
+      # почта: SMTP из infra/.env; без него API в Production не стартует
+      Smtp__Host: "${SMTP_HOST:-}"
+      Smtp__Port: "${SMTP_PORT:-587}"
+      Smtp__UseStartTls: "${SMTP_STARTTLS:-true}"
+      Smtp__User: "${SMTP_USER:-}"
+      Smtp__Password: "${SMTP_PASSWORD:-}"
+      Smtp__From: "${SMTP_FROM:-}"
       # host-фильтрация: домен + localhost (для healthcheck изнутри контейнера)
       AllowedHosts: "${APP_HOST:-localhost};localhost;127.0.0.1"
       # доверяем X-Forwarded-* только от nginx из этой docker-сети (см. networks ниже)

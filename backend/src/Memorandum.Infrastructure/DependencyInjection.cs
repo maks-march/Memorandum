@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.DataProtection.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Memorandum.Application.Abstractions;
 using Memorandum.Application.Invitations;
 using Memorandum.Application.PasswordChange;
@@ -26,7 +28,8 @@ public static class DependencyInjection
 
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         // Настройки проверяются при сборке контейнера, а не при первом запросе:
         // приложение должно падать на старте, а не на первом обращении к БД.
@@ -52,6 +55,7 @@ public static class DependencyInjection
 
         services.AddPasswordReset(configuration);
         services.AddInvitations(configuration);
+        services.AddEmail(configuration, environment);
 
         return services;
     }
@@ -78,7 +82,48 @@ public static class DependencyInjection
 
         services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(options));
         services.AddSingleton<IPasswordResetTicketStore, RedisPasswordResetTicketStore>();
-        services.AddScoped<IEmailSender, ConsoleEmailSender>();
+    }
+
+    /// <summary>Почта: SMTP из конфигурации, без него — вывод в лог.</summary>
+    /// <remarks>
+    /// Настройки проверяются на старте, чтобы опечатка в адресе сервера вылезала при
+    /// запуске, а не на первом запросе смены пароля. В Production SMTP обязателен:
+    /// код должен уходить адресату. В dev настоящая почта тоже работает, а если сервер
+    /// недоступен, письмо печатается в лог с предупреждением.
+    /// </remarks>
+    private static void AddEmail(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment)
+    {
+        services.AddSingleton<EmailFallback>();
+
+        var options = configuration.GetSection(SmtpOptions.SectionName).Get<SmtpOptions>() ?? new SmtpOptions();
+
+        if (string.IsNullOrWhiteSpace(options.Host))
+        {
+            if (environment.IsProduction())
+                throw new InvalidOperationException(
+                    "Production требует Smtp:Host и Smtp:From (переменные Smtp__Host, Smtp__From): " +
+                    "код смены пароля должен уходить адресату, а не в лог.");
+
+            services.AddScoped<IEmailSender, ConsoleEmailSender>();
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(options.From))
+            throw new InvalidOperationException(
+                "Задан Smtp:Host, но не задан Smtp:From (переменная Smtp__From): некому отправлять письма.");
+
+        if (options.Port is <= 0 or > 65535)
+            throw new InvalidOperationException($"Некорректный Smtp:Port = {options.Port}.");
+
+        if (options.Port == 465)
+            throw new InvalidOperationException(
+                "Smtp:Port = 465 (неявный TLS) штатным SmtpClient не поддерживается: используйте 587 со STARTTLS.");
+
+        services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
     }
 
     /// <summary>
