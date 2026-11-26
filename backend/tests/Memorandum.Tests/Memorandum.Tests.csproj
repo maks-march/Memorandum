@@ -20,6 +20,8 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Memorandum.Application/Memorandum.Application.csproj" />
     <ProjectReference Include="../../src/Memorandum.Infrastructure/Memorandum.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/Memorandum.Api/Memorandum.Api.csproj" />
+    <ProjectReference Include="../../src/Memorandum.Domain/Memorandum.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>
