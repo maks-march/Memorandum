@@ -207,9 +207,221 @@ export async function registerWithInvite(params: {
 }
 
 export async function requestPasswordReset(email: string): Promise<ApiResult<void>> {
-  return postAuthJson<void>('/api/v1/auth/forgot-password', { email });
+  // Поддержка нового эндпоинта POST /api/v1/auth/change-password из origin/main
+  const res = await postAuthJson<void>('/api/v1/auth/change-password', { email });
+  if (!res.ok && res.status === 404) {
+    return postAuthJson<void>('/api/v1/auth/forgot-password', { email });
+  }
+  return res;
 }
 
 export async function confirmPasswordReset(token: string, newPassword: string): Promise<ApiResult<void>> {
   return postAuthJson<void>('/api/v1/auth/reset-password', { token, newPassword });
+}
+
+export async function logoutUser(): Promise<ApiResult<void>> {
+  return postAuthJson<void>('/api/v1/auth/logout', {});
+}
+
+// -------------------------------------------------------------
+// ТИПЫ И ИНТЕГРАЦИЯ ДЛЯ ПРОЕКТОВ И ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ (БЭКЕНД)
+// -------------------------------------------------------------
+
+export interface ProjectItem {
+  id: number;
+  name: string;
+  objectName: string;
+  addressText: string;
+  workType: string;
+  responsibleName: string;
+  responsibleUserId?: number | null;
+  createdAt: string;
+  isArchived?: boolean;
+  documentsCount?: number;
+  code?: string | null;
+}
+
+export interface CreateProjectInput {
+  name: string;
+  objectName: string;
+  addressText: string;
+  workType: string;
+  responsibleUserId?: number | null;
+  responsibleName?: string;
+  organizationName?: string;
+  createdAt?: string;
+  code?: string | null;
+}
+
+interface BackendUserRef {
+  id: number;
+  fullName: string;
+}
+
+interface BackendProjectDto {
+  id: number;
+  name: string;
+  objectName: string;
+  workType?: string | null;
+  addressText?: string | null;
+  code?: string | null;
+  responsible?: BackendUserRef | null;
+  responsibleUserId?: number | null;
+  isArchived: boolean;
+  documentsCount: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface PagedBackendResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** Получить текущего пользователя строго из бэкенда (GET /api/v1/me) */
+export async function getCurrentUser(): Promise<UserProfile | null> {
+  try {
+    const res = await fetch('/api/v1/me', {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+
+    if (res.ok) {
+      return (await res.json()) as UserProfile;
+    }
+  } catch {
+    // Сеть недоступна или нет авторизации
+  }
+
+  return null;
+}
+
+/** Получить список проектов из бэкенда (GET /api/v1/projects?q=...) */
+export async function getProjects(params?: {
+  q?: string;
+  workType?: string;
+  archived?: boolean;
+}): Promise<{ items: ProjectItem[]; error?: string }> {
+  const query = new URLSearchParams();
+  if (params?.q?.trim()) query.set('q', params.q.trim());
+  if (params?.archived !== undefined) query.set('archived', String(params.archived));
+  const queryString = query.toString();
+  const url = queryString ? `/api/v1/projects?${queryString}` : '/api/v1/projects';
+
+  try {
+    let res = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+
+    // Если основной контроллер еще не настроен на сервере, проверяем контроллер заглушек бэкенда
+    if (res.status === 404) {
+      res = await fetch('/api/v1/mocks/projects', {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+    }
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { items: [], error: 'Необходима авторизация для просмотра проектов' };
+      }
+      return { items: [], error: `Ошибка сервера (HTTP ${res.status})` };
+    }
+
+    const rawData = (await res.json()) as
+      | PagedBackendResponse<BackendProjectDto>
+      | BackendProjectDto[];
+
+    const rawList: BackendProjectDto[] = Array.isArray(rawData)
+      ? rawData
+      : Array.isArray(rawData?.items)
+        ? rawData.items
+        : [];
+
+    const mapped: ProjectItem[] = rawList.map((p) => {
+      const d = new Date(p.createdAt || p.updatedAt || Date.now());
+      const formattedDate = !isNaN(d.getTime())
+        ? `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`
+        : '26.11.2026';
+
+      const workType =
+        p.workType === 'Construction'
+          ? 'Строительство'
+          : p.workType === 'Reconstruction'
+            ? 'Реконструкция'
+            : p.workType || 'Строительство';
+
+      const responsibleName =
+        p.responsible?.fullName ||
+        (p.responsibleUserId ? `Сотрудник #${p.responsibleUserId}` : 'Не назначен');
+
+      return {
+        id: p.id,
+        name: p.name,
+        objectName: p.objectName || 'Объект капитального строительства',
+        addressText: p.addressText || 'Не указан',
+        workType,
+        responsibleName,
+        responsibleUserId: p.responsible?.id ?? p.responsibleUserId ?? null,
+        createdAt: formattedDate,
+        isArchived: p.isArchived,
+        documentsCount: p.documentsCount,
+        code: p.code || undefined,
+      };
+    });
+
+    return { items: mapped };
+  } catch {
+    return { items: [], error: 'Не удалось подключиться к серверу API' };
+  }
+}
+
+/** Создать новый проект на бэкенде (POST /api/v1/projects) */
+export async function createProject(
+  input: CreateProjectInput
+): Promise<ApiResult<ProjectItem>> {
+  const body = {
+    name: input.name,
+    objectName: input.objectName,
+    objectKind: 'residential',
+    addressText: input.addressText,
+    workType:
+      input.workType === 'Строительство'
+        ? 'Construction'
+        : input.workType === 'Реконструкция'
+          ? 'Reconstruction'
+          : input.workType,
+    responsibleUserId: input.responsibleUserId || null,
+    code: input.code || null,
+  };
+
+  const res = await postAuthJson<{ id: number; name: string }>('/api/v1/projects', body);
+  if (!res.ok) {
+    return res;
+  }
+
+  const newProject: ProjectItem = {
+    id: res.data?.id || Date.now(),
+    name: input.name,
+    objectName: input.objectName,
+    addressText: input.addressText,
+    workType: input.workType,
+    responsibleName: input.responsibleName || 'Не назначен',
+    responsibleUserId: input.responsibleUserId || null,
+    createdAt: input.createdAt || new Date().toLocaleDateString('ru-RU'),
+    isArchived: false,
+    documentsCount: 0,
+    code: input.code,
+  };
+
+  return { ok: true, data: newProject };
 }

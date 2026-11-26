@@ -1,0 +1,198 @@
+/* frontend/src/pages/ProjectsPage/ProjectsPage.module.css */
+
+.container {
+  width: 100%;
+  max-width: 1100px;
+}
+
+/* Заголовок страницы */
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+}
+
+/* Кнопка создания проекта по макету Figma */
+.createButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 20px;
+  background-color: var(--color-primary);
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.createButton:hover {
+  background-color: var(--color-primary-hover);
+}
+
+/* Панель фильтров и поиска */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.searchWrapper {
+  position: relative;
+  width: 280px;
+  max-width: 100%;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: #8E8E93;
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  height: 40px;
+  padding: 0 14px 0 38px;
+  background-color: #FFFFFF;
+  border: 1px solid #D2D2D7;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  outline: none;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.searchInput::placeholder {
+  color: #8E8E93;
+}
+
+.searchInput:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+}
+
+.select {
+  height: 40px;
+  padding: 0 34px 0 14px;
+  background-color: #FFFFFF;
+  border: 1px solid #D2D2D7;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238E8E93' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  transition: border-color 0.15s ease-in-out;
+}
+
+.select::-ms-expand {
+  display: none;
+}
+
+.select:focus {
+  border-color: var(--color-primary);
+}
+
+/* Таблица проектов */
+.tableContainer {
+  background-color: #FFFFFF;
+  border: 1px solid #E5E5EA;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.tableHeadRow {
+  background-color: #FFFFFF;
+  border-bottom: 1px solid #E5E5EA;
+}
+
+.th {
+  padding: 14px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.tableBodyRow {
+  border-bottom: 1px solid #F0F0F2;
+  transition: background-color 0.12s ease-in-out;
+}
+
+.tableBodyRow:last-child {
+  border-bottom: none;
+}
+
+.tableBodyRow:hover {
+  background-color: #F9F9FB;
+}
+
+.td {
+  padding: 16px 20px;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  vertical-align: middle;
+}
+
+.projectName {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.projectAddress {
+  color: #48484A;
+}
+
+.projectWorkType {
+  color: var(--color-text-primary);
+}
+
+.projectResponsible {
+  color: var(--color-text-primary);
+}
+
+.projectDate {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.emptyState {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}

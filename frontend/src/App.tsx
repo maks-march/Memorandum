@@ -1,11 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout/AppLayout';
 import { AuthLayout } from '@/components/layout/AuthLayout/AuthLayout';
+import { DashboardLayout } from '@/components/layout/DashboardLayout/DashboardLayout';
 import { HomePage } from '@/pages/HomePage/HomePage';
 import { LoginPage } from '@/pages/LoginPage/LoginPage';
 import { RegisterPage } from '@/pages/RegisterPage/RegisterPage';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage/ForgotPasswordPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage/ResetPasswordPage';
+import { ProjectsPage } from '@/pages/ProjectsPage/ProjectsPage';
+import { NewProjectPage } from '@/pages/NewProjectPage/NewProjectPage';
 
 export default function App() {
   return (
@@ -22,6 +25,12 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+        </Route>
+
+        {/* Раздел проектов и личного кабинета с левым сайдбаром (макет Figma) */}
+        <Route element={<DashboardLayout />}>
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/new" element={<NewProjectPage />} />
         </Route>
 
         {/* Фоллбек для любых других путей */}
