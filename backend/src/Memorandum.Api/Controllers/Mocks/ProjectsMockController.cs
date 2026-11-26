@@ -1,14 +1,17 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Memorandum.Api.Contracts;
+using Memorandum.Api.Contracts.Documents;
 using Memorandum.Api.Contracts.Projects;
 
 namespace Memorandum.Api.Controllers.Mocks;
 
-/// <summary>
-/// Заглушки проектов: фронт работает без БД. Ответы те же, что у реальных
-/// эндпоинтов, — DTO не меняется, меняется только источник данных.
-/// </summary>
+/// <summary>Заглушки проектов.</summary>
+/// <remarks>
+/// Только чтение: фронт получает ответы той же формы, что у реальных эндпоинтов,
+/// и работает без БД. Запросы, меняющие данные, здесь не повторяются.
+/// </remarks>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/mocks/projects")]
@@ -19,21 +22,21 @@ public sealed class ProjectsMockController : ControllerBase
     /// <summary>Список проектов организации.</summary>
     /// <response code="200">Два проекта, один в архиве.</response>
     [HttpGet]
-    [ProducesResponseType<IReadOnlyList<ProjectHttpResponse>>(StatusCodes.Status200OK)]
-    public ActionResult<IReadOnlyList<ProjectHttpResponse>> List() =>
-        Ok(ProjectHttpResponse.MockList());
+    [ProducesResponseType<PagedHttpResponse<ProjectHttpResponse>>(StatusCodes.Status200OK)]
+    public ActionResult<PagedHttpResponse<ProjectHttpResponse>> List() =>
+        Ok(PagedHttpResponse<ProjectHttpResponse>.Mock(ProjectHttpResponse.MockList()));
 
     /// <summary>Карточка проекта.</summary>
-    /// <response code="200">Проект с тестовыми данными.</response>
+    /// <response code="200">Проект и счётчики документов.</response>
     [HttpGet("{id:long}")]
-    [ProducesResponseType<ProjectHttpResponse>(StatusCodes.Status200OK)]
-    public ActionResult<ProjectHttpResponse> Get(long id) =>
-        Ok(ProjectHttpResponse.Mock(id));
+    [ProducesResponseType<ProjectDetailsHttpResponse>(StatusCodes.Status200OK)]
+    public ActionResult<ProjectDetailsHttpResponse> Get(long id) =>
+        Ok(ProjectDetailsHttpResponse.Mock(id));
 
     /// <summary>Документы проекта.</summary>
-    /// <response code="200">Две редакции пояснительной записки.</response>
+    /// <response code="200">Четыре документа в разных статусах.</response>
     [HttpGet("{id:long}/documents")]
-    [ProducesResponseType<IReadOnlyList<ProjectDocumentHttpResponse>>(StatusCodes.Status200OK)]
-    public ActionResult<IReadOnlyList<ProjectDocumentHttpResponse>> Documents(long id) =>
-        Ok(ProjectDocumentHttpResponse.MockList(id));
+    [ProducesResponseType<PagedHttpResponse<DocumentHttpResponse>>(StatusCodes.Status200OK)]
+    public ActionResult<PagedHttpResponse<DocumentHttpResponse>> Documents(long id) =>
+        Ok(PagedHttpResponse<DocumentHttpResponse>.Mock(DocumentHttpResponse.MockList()));
 }

@@ -1,7 +1,7 @@
 
-namespace Memorandum.Api.Contracts.Projects;
+namespace Memorandum.Api.Contracts.Documents;
 
-/// <summary>Раздел пояснительной записки: <c>/api/v1/documents/{id}/sections</c>.</summary>
+/// <summary>Раздел пояснительной записки: раздел редактора.</summary>
 /// <param name="Id">Идентификатор раздела.</param>
 /// <param name="Code">Код раздела по схеме.</param>
 /// <param name="Title">Название раздела.</param>
@@ -14,15 +14,16 @@ public sealed record DocumentSectionHttpResponse(
     int SortOrder,
     string? DataJson)
 {
-    /// <summary>Моковая версия для <c>/api/v1/mocks/documents/{id}/sections</c>.</summary>
+    /// <summary>Моковая версия для разделов документа.</summary>
     public static DocumentSectionHttpResponse Mock(long id = 1, int sortOrder = 1) =>
         new(
             id,
             "object-info",
             "Сведения об объекте капитального строительства",
             sortOrder,
-            """{"objectName":"Жилой дом по ул. Ленина, 15","address":"г. Екатеринбург"}""");
+            """{"objectName":"Многоквартирный жилой дом","address":"г. Екатеринбург, ул. Ленина, 15"}""");
 
+    /// <summary>Моковый список: три раздела.</summary>
     public static IReadOnlyList<DocumentSectionHttpResponse> MockList() =>
         [
             Mock(1, 1),

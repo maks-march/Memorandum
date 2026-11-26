@@ -4,9 +4,15 @@ using Memorandum.Application.Abstractions;
 
 namespace Memorandum.Infrastructure.Email;
 
-/// <summary>Заглушка почты: письмо печатается в лог. Только вне Production.</summary>
+/// <summary>Почта без SMTP: письмо печатается в лог.</summary>
+/// <remarks>
+/// Вне Production допустима как основной способ отправки, если SMTP не настроен,
+/// и как запасной, когда сервер недоступен. В Production такой отправки нет:
+/// код должен уходить адресату, а не в лог.
+/// </remarks>
 public sealed class ConsoleEmailSender(
     IHostEnvironment environment,
+    EmailFallback fallback,
     ILogger<ConsoleEmailSender> logger) : IEmailSender
 {
     public Task SendPasswordResetCodeAsync(
@@ -18,12 +24,10 @@ public sealed class ConsoleEmailSender(
     {
         if (environment.IsProduction())
             throw new InvalidOperationException(
-                "ConsoleEmailSender работает только вне Production: нужен SMTP-адаптер.");
+                "Консольная почта работает только вне Production: нужен SMTP.");
 
-        logger.LogInformation(
-            "ПИСЬМО (заглушка): кому {Email}, userId {UserId}, " +
-            "POST /api/v1/auth/change-password/{UserId}?code={Code}, действует до {ExpiresAt:O}",
-            email, userId, userId, code, expiresAt);
+        fallback.Write(logger, email, "Код для смены пароля",
+            $"Код: {code}, userId {userId}, действует до {expiresAt:O}");
 
         return Task.CompletedTask;
     }

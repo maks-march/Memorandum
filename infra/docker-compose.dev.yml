@@ -9,8 +9,10 @@ services:
   api:
     image: mcr.microsoft.com/dotnet/sdk:10.0
     working_dir: /src
+    # --project tools/... : watch читает проект из tools, а не из /src/src, иначе
+    # staticwebassets.development.json ищется по пути '/src/src/...'.
     command: >
-      dotnet watch run --project src/Memorandum.Api/Memorandum.Api.csproj
+      dotnet watch --project src/Memorandum.Api/Memorandum.Api.csproj run
       --no-launch-profile --urls http://0.0.0.0:5000
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -21,6 +23,14 @@ services:
       Mock__Enabled: "true"
       # коды смены пароля: Redis ниже, в этой же compose-сети
       Redis__Configuration: "redis:6379"
+      # почта: письма отправляет сам API. SMTP берётся из infra/.env (как в проде);
+      # пусто — письмо печатается в лог с предупреждением.
+      Smtp__Host: "${SMTP_HOST:-}"
+      Smtp__Port: "${SMTP_PORT:-587}"
+      Smtp__UseStartTls: "${SMTP_STARTTLS:-true}"
+      Smtp__User: "${SMTP_USER:-}"
+      Smtp__Password: "${SMTP_PASSWORD:-}"
+      Smtp__From: "${SMTP_FROM:-}"
     volumes:
       - ../backend:/src
       - nuget:/root/.nuget/packages          # быстрый restore между перезапусками

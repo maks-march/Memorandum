@@ -17,7 +17,7 @@ namespace Memorandum.Api.Controllers.Auth;
 [Authorize]
 public sealed class MeController(ICurrentUserService currentUserService) : ControllerBase
 {
-    /// <summary>Профиль: организация и роль приходят null, если пользователь ещё не состоит в организации.</summary>
+    /// <summary>Профиль текущего пользователя.</summary>
     /// <response code="200">Профиль.</response>
     /// <response code="401">Нет cookie или сессия отозвана.</response>
     [HttpGet]
@@ -32,10 +32,11 @@ public sealed class MeController(ICurrentUserService currentUserService) : Contr
             : result.Error.ToProblem(this);
     }
 
-    /// <summary>
-    /// Правка личных данных: ФИО и телефон. Должность меняется в организации —
-    /// она принадлежит участию, а не пользователю.
-    /// </summary>
+    /// <summary>Правка личных данных.</summary>
+    /// <remarks>
+    /// Меняются ФИО и телефон. Должность меняется в организации — она принадлежит
+    /// участию, а не пользователю.
+    /// </remarks>
     /// <response code="200">Профиль после изменений.</response>
     /// <response code="400">Некорректные поля.</response>
     /// <response code="401">Нет cookie или сессия отозвана.</response>

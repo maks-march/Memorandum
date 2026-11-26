@@ -15,7 +15,7 @@ builder.AddTrustedProxies();
 
 // 2. Слои приложения.
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 
 // 3. API: безопасность (антифоржери, cookie-auth, лимиты, часы), версии, CORS.
 builder.Services

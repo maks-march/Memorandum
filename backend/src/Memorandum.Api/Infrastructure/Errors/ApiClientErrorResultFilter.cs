@@ -7,13 +7,13 @@ using Memorandum.Domain.Common;
 
 namespace Memorandum.Api.Infrastructure.Errors;
 
-/// <summary>
-/// Провал антифоржери приходит как «клиентская ошибка 400» без подробностей:
-/// ASP.NET отдаёт title «Bad Request» и звёздочку в type, а фронту нужно знать,
-/// перевыпустить токен или отправить его вообще. Подменяем тело на ProblemDetails
-/// с кодом и причиной; сама проверка токена остаётся штатной
+/// <summary>Понятное тело ошибки антифоржери.</summary>
+/// <remarks>
+/// ASP.NET отдаёт на провал токена «клиентскую ошибку 400» без подробностей, а фронту
+/// нужно знать, перевыпустить токен или отправить его вообще. Тело подменяется на
+/// <c>ProblemDetails</c> с кодом и причиной; сама проверка остаётся штатной
 /// (<c>[RequireAntiforgeryToken]</c> + <c>UseAntiforgery</c>).
-/// </summary>
+/// </remarks>
 internal sealed class ApiClientErrorResultFilter : IAlwaysRunResultFilter, IOrderedFilter
 {
     /// <summary>Штатный фильтр клиентских ошибок идёт с порядком −2000.</summary>
@@ -41,11 +41,13 @@ internal sealed class ApiClientErrorResultFilter : IAlwaysRunResultFilter, IOrde
         var noHeader = string.IsNullOrEmpty(httpContext.Request.Headers["X-XSRF-TOKEN"]);
         var noCookie = !httpContext.Request.Cookies.ContainsKey("XSRF-TOKEN");
 
+        // Заголовок присылает клиент — сервер его не подставляет. Поэтому первым
+        // делом проверяем наличие заголовка, а не cookie.
         var detail = (noHeader, noCookie) switch
         {
-            (true, true) => "Токен не передан: получите cookie через GET /api/v1/auth/csrf — дальше она отправляется с запросом сама.",
-            (_, true) => "Cookie XSRF-TOKEN отсутствует или истекла: перевыпустите токен через GET /api/v1/auth/csrf.",
-            _ => "Токен не совпадает с cookie XSRF-TOKEN: перевыпустите его через GET /api/v1/auth/csrf.",
+            (true, _) => "Заголовок X-XSRF-TOKEN не передан: получите токен через GET /api/v1/auth/csrf.",
+            (false, true) => "Cookie XSRF-TOKEN отсутствует или истекла: перевыпустите токен через GET /api/v1/auth/csrf.",
+            _ => "Заголовок X-XSRF-TOKEN не совпадает с cookie XSRF-TOKEN: перевыпустите токен через GET /api/v1/auth/csrf.",
         };
 
         var problem = new ProblemDetails

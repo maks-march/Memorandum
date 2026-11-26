@@ -228,6 +228,17 @@ jobs:
           fi
           echo "контейнер завершился с ошибкой, как и требовалось"
 
+      - name: api-образ без Smtp__From падает
+        run: |
+          set -eu
+          if API_IMAGE=memorandum-api IMAGE_TAG=ci \
+             docker compose -f infra/docker-compose.prod.yml --env-file infra/.env \
+               run --rm --no-deps -e Smtp__From="" api-ci; then
+            echo "контейнер стартовал без адреса отправителя — fail-fast не работает"
+            exit 1
+          fi
+          echo "контейнер завершился с ошибкой, как и требовалось"
+
       - name: api-образ без PasswordReset__CodePepper падает
         run: |
           set -eu
