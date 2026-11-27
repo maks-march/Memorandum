@@ -37,6 +37,30 @@ public sealed class ProjectConfiguration : IEntityTypeConfiguration<Project>
         builder.Property(project => project.ResponsibleUserId)
             .HasColumnName("responsible_user_id");
 
+        builder.Property(project => project.WorkType)
+            .HasColumnName("work_type")
+            .HasMaxLength(32)
+            .HasConversion<string>()
+            .IsRequired();
+
+        builder.Property(project => project.ObjectKind)
+            .HasColumnName("object_kind")
+            .HasMaxLength(32)
+            .HasConversion<string>()
+            .IsRequired();
+
+        builder.Property(project => project.RegionCode)
+            .HasColumnName("region_code")
+            .HasMaxLength(Project.RegionCodeMaxLength);
+
+        builder.Property(project => project.OktmoCode)
+            .HasColumnName("oktmo_code")
+            .HasMaxLength(Project.OktmoCodeMaxLength);
+
+        builder.Property(project => project.OktmoName)
+            .HasColumnName("oktmo_name")
+            .HasMaxLength(Project.OktmoNameMaxLength);
+
         builder.Property(project => project.IsArchived)
             .HasColumnName("is_archived")
             .IsRequired();

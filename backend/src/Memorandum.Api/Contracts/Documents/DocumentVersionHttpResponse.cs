@@ -1,4 +1,3 @@
-
 namespace Memorandum.Api.Contracts.Documents;
 
 /// <summary>Версия документа: снапшот содержимого.</summary>
@@ -24,7 +23,7 @@ public sealed record DocumentVersionHttpResponse(
             "Иванов Иван Иванович",
             Comment: number == 1 ? "Первая редакция" : null,
             IsAuto: number > 1,
-            "Draft");
+            "draft");
 
     /// <summary>Моковый список версий.</summary>
     public static IReadOnlyList<DocumentVersionHttpResponse> MockList() => [Mock(1), Mock(2)];

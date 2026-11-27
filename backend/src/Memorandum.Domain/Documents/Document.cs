@@ -1,26 +1,32 @@
 using Memorandum.Domain.Common;
+using Memorandum.Domain.Organizations;
 using Memorandum.Domain.Projects;
 
 namespace Memorandum.Domain.Documents;
 
-/// <summary>
-/// Пояснительная записка в рамках проекта: основная сущность сервиса.
-/// Агрегат: разделы, версии, импорты и проверки меняются только через него.
-/// </summary>
+/// <summary>Пояснительная записка в рамках проекта.</summary>
+/// <remarks>
+/// Агрегат: содержимое по разделам, участники, версии, проверки, XML и импорт
+/// меняются только через него. Содержимое документа — JSON по каталогу полей схемы,
+/// поэтому структура полей задаётся версией схемы, а не БД.
+/// </remarks>
 public sealed class Document : AuditableEntity
 {
-    public const int TitleMaxLength = 500;
-    public const int SchemaCodeMaxLength = 20;
-    public const int CheckDetailsMaxLength = 20_000;
-    public const int XmlSha256Length = 64;
+    public const int TitleMaxLength = 200;
 
-    private readonly List<DocumentSection> _sections = [];
+    private readonly List<DocumentParticipant> _participants = [];
     private readonly List<DocumentVersion> _versions = [];
+    private readonly List<DocumentCheck> _checks = [];
+    private readonly List<XmlArtifact> _xmlArtifacts = [];
     private readonly List<DocumentImport> _imports = [];
 
     private Document()
     {
     }
+
+    public long OrganizationId { get; private set; }
+
+    public Organization? Organization { get; private set; }
 
     public long ProjectId { get; private set; }
 
@@ -29,68 +35,83 @@ public sealed class Document : AuditableEntity
     public string Title { get; private set; } = null!;
 
     /// <summary>
-    /// Код XML-схемы Минстроя, по которой заполняется документ (например «01.07»).
-    /// Задаётся при создании: смена схемы — это другой документ, а не правка.
+    /// Версия схемы фиксируется при создании: смена схемы — это другой документ,
+    /// иначе уже проверенный XML перестанет соответствовать содержимому.
     /// </summary>
-    public string SchemaCode { get; private set; } = null!;
+    public long SchemaVersionId { get; private set; }
+
+    public Schemas.SchemaVersion SchemaVersion { get; private set; } = null!;
 
     public DocumentStatus Status { get; private set; }
 
-    public bool IsArchived { get; private set; }
+    /// <summary>Снимок полей объекта: перенесён из проекта при создании документа.</summary>
+    public DocumentObjectSnapshot Object { get; private set; } = null!;
+
+    /// <summary>Содержимое по разделам: JSON каталога полей схемы.</summary>
+    public string DataJson { get; private set; } = "{}";
 
     /// <summary>Ответственный за документ; <c>null</c> — отвечает ответственный за проект.</summary>
     public long? ResponsibleUserId { get; private set; }
 
-    public IReadOnlyCollection<DocumentSection> Sections => _sections;
+    /// <summary>Момент удаления: документ скрывается, но версии и XML остаются.</summary>
+    public DateTime? DeletedAt { get; private set; }
+
+    /// <summary>Статус до архивации: восстановление возвращает именно его.</summary>
+    public DocumentStatus? StatusBeforeArchiving { get; private set; }
+
+    public IReadOnlyCollection<DocumentParticipant> Participants => _participants;
 
     public IReadOnlyCollection<DocumentVersion> Versions => _versions;
 
+    public IReadOnlyCollection<DocumentCheck> Checks => _checks;
+
+    public IReadOnlyCollection<XmlArtifact> XmlArtifacts => _xmlArtifacts;
+
     public IReadOnlyCollection<DocumentImport> Imports => _imports;
 
-    /// <summary>Автор последней правки: колонка «Автор» в списке документов.</summary>
-    public string? AuthorName => UpdatedBy;
+    public bool IsDeleted => DeletedAt is not null;
 
-    /// <summary>Когда документ проверяли последний раз; <c>null</c> — не проверялся.</summary>
-    public DateTime? CheckedAt { get; private set; }
+    /// <summary>Есть ли успешная проверка, по которой можно выгружать XML.</summary>
+    public DocumentCheck? LastCheck => _checks.Count == 0
+        ? null
+        : _checks.MaxBy(check => check.CheckedAt);
 
-    /// <summary>Ошибок в последней проверке.</summary>
-    public int CheckErrorCount { get; private set; }
-
-    /// <summary>Предупреждений в последней проверке.</summary>
-    public int CheckWarningCount { get; private set; }
-
-    /// <summary>Замечания последней проверки: JSON-массив, как пришёл от проверки.</summary>
-    public string? CheckErrorsJson { get; private set; }
-
-    /// <summary>Хеш последнего сгенерированного XML; <c>null</c> — XML не генерировали.</summary>
-    public string? XmlSha256 { get; private set; }
-
-    public long? XmlSizeBytes { get; private set; }
-
-    /// <summary>XML последней генерации прошёл XSD-валидацию.</summary>
-    public bool? XmlValid { get; private set; }
+    public bool CanDownloadXml => Status == DocumentStatus.Verified && LastCheck is { Ok: true };
 
     public static Document Create(
         Project project,
+        Organization organization,
+        Schemas.SchemaVersion schemaVersion,
         string? title,
-        string? schemaCode,
         DateTime utcNow,
         string? createdBy = null)
     {
         ArgumentNullException.ThrowIfNull(project);
+        ArgumentNullException.ThrowIfNull(organization);
+        ArgumentNullException.ThrowIfNull(schemaVersion);
 
         if (project.IsArchived)
             throw new ConflictException(
                 ErrorCodes.ProjectArchived,
                 "Нельзя создать документ в архивном проекте.");
 
+        if (!schemaVersion.IsActive)
+            throw new ConflictException(
+                ErrorCodes.SchemaInactive,
+                $"Версия схемы {schemaVersion.Code} выключена: новые документы по ней не создаются.");
+
         var document = new Document
         {
+            Organization = organization,
+            OrganizationId = organization.Id,
             Project = project,
             ProjectId = project.Id,
+            SchemaVersion = schemaVersion,
+            SchemaVersionId = schemaVersion.Id,
             Title = Guard.Required(title, "Заголовок документа", TitleMaxLength),
-            SchemaCode = Guard.Required(schemaCode, "Код схемы", SchemaCodeMaxLength),
             Status = DocumentStatus.Draft,
+            DataJson = "{}",
+            Object = DocumentObjectSnapshot.FromProject(project),
         };
 
         document.MarkCreated(utcNow, createdBy);
@@ -99,16 +120,27 @@ public sealed class Document : AuditableEntity
 
     public void Rename(string? title, DateTime utcNow, string? updatedBy = null)
     {
-        EnsureEditable("Нельзя изменить архивный документ.");
+        EnsureNotArchived("Нельзя изменить архивный документ.");
 
         Title = Guard.Required(title, "Заголовок документа", TitleMaxLength);
         Touch(utcNow, updatedBy);
     }
 
+    /// <summary>Схема документа неизменяема: попытка сменить — ошибка домена.</summary>
+    public void ChangeSchema(Schemas.SchemaVersion schemaVersion)
+    {
+        ArgumentNullException.ThrowIfNull(schemaVersion);
+
+        if (schemaVersion.Id != SchemaVersionId)
+            throw new ConflictException(
+                ErrorCodes.DocumentSchemaImmutable,
+                "Версия схемы фиксируется при создании документа: смена схемы — это новый документ.");
+    }
+
     /// <summary>Ответственным можно назначить только участника проекта: иначе он не увидит документ.</summary>
     public void AssignResponsible(long? userId, DateTime utcNow, string? updatedBy = null)
     {
-        EnsureEditable("Нельзя изменить архивный документ.");
+        EnsureNotArchived("Нельзя изменить архивный документ.");
 
         if (userId is not null && !Project.HasMember(userId.Value))
             throw new ValidationException(
@@ -119,153 +151,175 @@ public sealed class Document : AuditableEntity
         Touch(utcNow, updatedBy);
     }
 
-    /// <summary>Раздел добавляется один раз на код: содержимое дальше меняется через <see cref="FillSection"/>.</summary>
-    public DocumentSection AddSection(
-        string? code,
-        string? title,
-        int sortOrder,
+    /// <summary>Автосохранение содержимого документа целиком.</summary>
+    public void ReplaceData(string? dataJson, DateTime utcNow, string? updatedBy = null)
+    {
+        EnsureContentEditable("Нельзя изменить архивный документ.");
+
+        if (string.IsNullOrWhiteSpace(dataJson))
+            throw new ValidationException(ErrorCodes.Required, "Содержимое документа обязательно.");
+
+        DataJson = dataJson;
+        Reopen();
+        Touch(utcNow, updatedBy);
+    }
+
+    /// <summary>Автосохранение одного раздела редактора.</summary>
+    public void FillSection(DocumentSectionCode section, string? dataJson, DateTime utcNow, string? updatedBy = null)
+    {
+        EnsureContentEditable("Нельзя изменить архивный документ.");
+
+        DataJson = DocumentData.WithSection(DataJson, section, dataJson);
+        Reopen();
+        Touch(utcNow, updatedBy);
+    }
+
+    /// <summary>Содержимое раздела из общего JSON; <c>null</c> — раздел не заполнялся.</summary>
+    public string? SectionData(DocumentSectionCode section) => DocumentData.Section(DataJson, section);
+
+    public DocumentParticipant AddParticipant(
+        DocumentParticipantKind kind,
+        PartyType partyType,
+        string? fullName,
         DateTime utcNow,
+        long? organizationId = null,
+        long? userId = null,
+        string? position = null,
+        string? snils = null,
+        string? nrsNopriz = null,
+        int order = 0,
         string? createdBy = null)
     {
         EnsureContentEditable("Нельзя изменить архивный документ.");
 
-        var normalizedCode = Guard.Required(code, "Код раздела", DocumentSection.CodeMaxLength);
+        // ГИП один: иначе в XML появляются два руководителя проекта.
+        if (kind == DocumentParticipantKind.Gip && _participants.Any(p => p.Kind == DocumentParticipantKind.Gip))
+            throw new ConflictException(
+                ErrorCodes.ParticipantDuplicateGip,
+                "ГИП уже указан: заменить участника можно только через удаление прежнего.");
 
-        if (FindSection(normalizedCode) is not null)
-            throw new ConflictException(ErrorCodes.SectionDuplicate, $"Раздел «{normalizedCode}» уже есть в документе.");
+        var participant = new DocumentParticipant(
+            this, kind, partyType, fullName, position, snils, nrsNopriz, order, organizationId, userId, utcNow, createdBy);
 
-        var section = new DocumentSection(this, normalizedCode, title, sortOrder, utcNow, createdBy);
-        _sections.Add(section);
-
-        // Новый раздел — это изменение содержимого: прежняя проверка больше не актуальна.
+        _participants.Add(participant);
         Reopen();
-
-        return section;
+        return participant;
     }
 
-    public DocumentSection? FindSection(string code) =>
-        _sections.FirstOrDefault(section =>
-            string.Equals(section.Code, code, StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>Автосохранение одной секции редактора.</summary>
-    public DocumentSection FillSection(
-        string? code,
-        string? dataJson,
-        DateTime utcNow,
-        string? updatedBy = null)
+    public void RemoveParticipant(DocumentParticipantKind kind, DateTime utcNow, string? updatedBy = null)
     {
         EnsureContentEditable("Нельзя изменить архивный документ.");
 
-        var normalizedCode = Guard.Required(code, "Код раздела", DocumentSection.CodeMaxLength);
-        var section = FindSection(normalizedCode)
-                      ?? throw new NotFoundException(ErrorCodes.NotFound, $"Раздел «{normalizedCode}» не найден.");
+        var participant = _participants.FirstOrDefault(item => item.Kind == kind)
+                          ?? throw new NotFoundException(ErrorCodes.NotFound, $"Участник «{kind}» не указан.");
 
-        section.Fill(dataJson, utcNow, updatedBy);
+        _participants.Remove(participant);
         Reopen();
-
-        return section;
+        Touch(utcNow, updatedBy);
     }
 
     /// <summary>Ручной снапшот содержимого. Номер версии — следующий по порядку.</summary>
     public DocumentVersion AddVersion(
-        string? dataJson,
         DateTime utcNow,
         string? comment = null,
         bool isAuto = false,
         string? createdBy = null)
     {
-        if (IsArchived)
-            throw new ConflictException(ErrorCodes.DocumentNotEditable, "Нельзя изменить архивный документ.");
-
-        var version = new DocumentVersion(
-            NextVersionNumber(), dataJson, Status, utcNow, comment, isAuto, createdBy);
-
+        var version = new DocumentVersion(this, NextVersionNumber(), DataJson, Status, utcNow, comment, isAuto, createdBy);
         _versions.Add(version);
         return version;
     }
-
-    /// <summary>
-    /// Автоматический снапшот текущего содержимого перед восстановлением:
-    /// иначе восстановление затирает правки без возможности вернуться.
-    /// </summary>
-    public DocumentVersion SnapshotBeforeRestore(string? dataJson, DateTime utcNow, string? createdBy = null) =>
-        AddVersion(dataJson, utcNow, comment: "Перед восстановлением версии", isAuto: true, createdBy: createdBy);
 
     public DocumentVersion FindVersion(int number) =>
         _versions.FirstOrDefault(version => version.Number == number)
         ?? throw new NotFoundException(ErrorCodes.NotFound, $"Версия {number} не найдена.");
 
-    /// <summary>Регистрация импорта: исходный файл прикрепляется отдельно.</summary>
+    /// <summary>
+    /// Восстановление версии: сначала автоснапшот текущего содержимого,
+    /// иначе правки затираются без возможности вернуться.
+    /// </summary>
+    public DocumentVersion RestoreVersion(int number, DateTime utcNow, string? createdBy = null)
+    {
+        EnsureContentEditable("Нельзя изменить архивный документ.");
+
+        var version = FindVersion(number);
+        var snapshot = AddVersion(utcNow, comment: "Перед восстановлением версии", isAuto: true, createdBy: createdBy);
+
+        DataJson = version.DataJson;
+        Reopen();
+        Touch(utcNow, createdBy);
+
+        return snapshot;
+    }
+
+    /// <summary>
+    /// Результат проверки. История проверок append-only: статус меняет последняя,
+    /// выставить «проверен» вручную нельзя.
+    /// </summary>
+    public DocumentCheck RecordCheck(
+        bool ok,
+        IReadOnlyCollection<DocumentCheckIssue> issues,
+        DateTime utcNow,
+        string? createdBy = null)
+    {
+        ArgumentNullException.ThrowIfNull(issues);
+
+        if (IsArchived)
+            throw new ConflictException(ErrorCodes.DocumentArchived, "Нельзя проверить архивный документ.");
+
+        var check = new DocumentCheck(this, SchemaVersionId, ok, issues, utcNow, createdBy);
+        _checks.Add(check);
+
+        Status = ok ? DocumentStatus.Verified : DocumentStatus.HasErrors;
+        Touch(utcNow, createdBy);
+
+        return check;
+    }
+
+    /// <summary>Артефакт XML: сохраняется только для проверенного документа.</summary>
+    public XmlArtifact RecordXml(
+        DocumentCheck check,
+        string? sha256,
+        long sizeBytes,
+        DateTime utcNow,
+        string? createdBy = null)
+    {
+        ArgumentNullException.ThrowIfNull(check);
+
+        if (check.DocumentId != Id || check != LastCheck && check.CheckedAt < (LastCheck?.CheckedAt ?? utcNow))
+            throw new ConflictException(ErrorCodes.StaleVersion, "XML собирается по актуальной проверке документа.");
+
+        if (!check.Ok || Status != DocumentStatus.Verified)
+            throw new ConflictException(
+                ErrorCodes.DocumentNotVerified,
+                "XML выгружается только для документа с успешной проверкой.");
+
+        var artifact = new XmlArtifact(this, check, sha256, sizeBytes, utcNow, createdBy);
+        _xmlArtifacts.Add(artifact);
+
+        Touch(utcNow, createdBy);
+        return artifact;
+    }
+
+    /// <summary>Импорт XML: исходный файл сохраняется всегда, даже при частичном переносе.</summary>
     public DocumentImport RecordImport(
+        ImportStatus status,
         string? fileName,
         string? detectedSchemaCode,
         int importedFields,
-        string? warningsJson,
         DateTime utcNow,
+        IReadOnlyCollection<string>? warnings = null,
+        byte[]? originalFile = null,
         string? createdBy = null)
     {
         EnsureContentEditable("Нельзя изменить архивный документ.");
 
-        if (detectedSchemaCode is not null
-            && !string.Equals(detectedSchemaCode, SchemaCode, StringComparison.OrdinalIgnoreCase))
-            throw new ConflictException(
-                ErrorCodes.SchemaMismatch,
-                $"Файл относится к схеме {detectedSchemaCode}, документ заполняется по схеме {SchemaCode}.");
+        var import = new DocumentImport(
+            this, fileName, detectedSchemaCode, status, importedFields, warnings ?? [], originalFile, utcNow, createdBy);
 
-        var import = new DocumentImport(fileName, detectedSchemaCode, importedFields, warningsJson, utcNow, createdBy);
         _imports.Add(import);
         Reopen();
-
         return import;
-    }
-
-    /// <summary>
-    /// Результат последней проверки. Он же меняет статус: «проверен» или «есть ошибки».
-    /// История проверок не хранится — она нужна только для отладки и живёт в логах.
-    /// </summary>
-    public void RecordCheck(
-        int errorCount,
-        int warningCount,
-        string? errorsJson,
-        DateTime utcNow,
-        string? createdBy = null)
-    {
-        if (IsArchived)
-            throw new ConflictException(ErrorCodes.DocumentNotEditable, "Нельзя изменить архивный документ.");
-
-        if (errorCount < 0 || warningCount < 0)
-            throw new ValidationException(ErrorCodes.Validation, "Счётчики замечаний не могут быть отрицательными.");
-
-        CheckedAt = utcNow;
-        CheckErrorCount = errorCount;
-        CheckWarningCount = warningCount;
-        CheckErrorsJson = Guard.Optional(errorsJson, "Замечания", CheckDetailsMaxLength);
-        Status = errorCount == 0 ? DocumentStatus.Verified : DocumentStatus.HasErrors;
-
-        Touch(utcNow, createdBy);
-    }
-
-    /// <summary>XML можно выгрузить только после успешной проверки.</summary>
-    public void RecordXml(
-        string? sha256,
-        long sizeBytes,
-        bool valid,
-        DateTime utcNow,
-        string? updatedBy = null)
-    {
-        if (Status != DocumentStatus.Verified)
-            throw new ConflictException(
-                ErrorCodes.DocumentNotVerified,
-                "XML выгружается только для проверенного документа.");
-
-        if (sizeBytes <= 0)
-            throw new ValidationException(ErrorCodes.Validation, "Размер XML должен быть больше нуля.");
-
-        XmlSha256 = Guard.Required(sha256, "Хеш XML", XmlSha256Length);
-        XmlSizeBytes = sizeBytes;
-        XmlValid = valid;
-
-        Touch(utcNow, updatedBy);
     }
 
     public void Archive(DateTime utcNow, string? updatedBy = null)
@@ -273,51 +327,65 @@ public sealed class Document : AuditableEntity
         if (IsArchived)
             return;
 
-        IsArchived = true;
+        StatusBeforeArchiving = Status;
         Status = DocumentStatus.Archived;
+        Touch(utcNow, updatedBy);
+    }
+
+    /// <summary>Восстановление возвращает прежний статус, а не «черновик».</summary>
+    public void Unarchive(DateTime utcNow, string? updatedBy = null)
+    {
+        if (!IsArchived)
+            return;
+
+        Status = StatusBeforeArchiving ?? DocumentStatus.Draft;
+        StatusBeforeArchiving = null;
+        Touch(utcNow, updatedBy);
+    }
+
+    /// <summary>Мягкое удаление: версии, проверки и артефакты остаются в БД.</summary>
+    public void Delete(DateTime utcNow, string? updatedBy = null)
+    {
+        if (IsDeleted)
+            return;
+
+        DeletedAt = utcNow;
         Touch(utcNow, updatedBy);
     }
 
     public void Restore(DateTime utcNow, string? updatedBy = null)
     {
-        if (!IsArchived)
+        if (!IsDeleted)
             return;
 
-        IsArchived = false;
-        Status = DocumentStatus.Draft;
+        DeletedAt = null;
         Touch(utcNow, updatedBy);
     }
 
-    /// <summary>Черновик — единственный статус, в котором документ правится.</summary>
-    private void EnsureEditable(string message)
-    {
-        if (IsArchived || Status != DocumentStatus.Draft)
-            throw new ConflictException(ErrorCodes.DocumentNotEditable, message);
-    }
+    /// <summary>Архив: содержимое, участники и импорт заблокированы.</summary>
+    public bool IsArchived => Status == DocumentStatus.Archived;
 
-    /// <summary>
-    /// Правка содержимого: разрешена и в проверенном документе, но снимает отметку проверки —
-    /// после изменения прежний результат уже ничего не гарантирует.
-    /// </summary>
+    /// <summary>Черновик и статусы проверки правятся; архив — нет.</summary>
     private void EnsureContentEditable(string message)
     {
         if (IsArchived)
-            throw new ConflictException(ErrorCodes.DocumentNotEditable, message);
+            throw new ConflictException(ErrorCodes.DocumentArchived, message);
     }
 
+    private void EnsureNotArchived(string message)
+    {
+        if (IsArchived)
+            throw new ConflictException(ErrorCodes.DocumentArchived, message);
+    }
+
+    /// <summary>
+    /// Правка содержимого снимает отметку проверки: прежний результат относился
+    /// к другому содержимому, а выгружать устаревший XML нельзя.
+    /// </summary>
     private void Reopen()
     {
         if (Status is DocumentStatus.Verified or DocumentStatus.HasErrors)
             Status = DocumentStatus.Draft;
-
-        // Результат проверки относится к прежнему содержимому: после правки он недействителен.
-        CheckedAt = null;
-        CheckErrorCount = 0;
-        CheckWarningCount = 0;
-        CheckErrorsJson = null;
-        XmlSha256 = null;
-        XmlSizeBytes = null;
-        XmlValid = null;
     }
 
     private int NextVersionNumber() =>

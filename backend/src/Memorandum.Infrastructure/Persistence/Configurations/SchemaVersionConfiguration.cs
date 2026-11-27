@@ -45,6 +45,23 @@ public sealed class SchemaVersionConfiguration : IEntityTypeConfiguration<Schema
             .HasColumnName("sha256")
             .HasMaxLength(SchemaVersion.Sha256Length);
 
+        builder.Property(version => version.EntryPoint)
+            .HasColumnName("entry_point")
+            .HasMaxLength(SchemaVersion.EntryPointMaxLength);
+
+        builder.Property(version => version.TargetNamespace)
+            .HasColumnName("target_namespace")
+            .HasMaxLength(SchemaVersion.NamespaceMaxLength);
+
+        builder.Property(version => version.CompileMessage)
+            .HasColumnName("compile_message")
+            .HasMaxLength(SchemaVersion.CompileMessageMaxLength);
+
+        builder.Property(version => version.CompiledAt)
+            .HasColumnName("compiled_at");
+
+        builder.Ignore(version => version.IsRunnable);
+
         // Версия по умолчанию одна: частичный уникальный индекс не даёт завести вторую.
         builder.HasIndex(version => version.IsDefault)
             .HasDatabaseName("ux_schema_versions_is_default")

@@ -1,72 +1,73 @@
+using System.Text.Json;
 using Memorandum.Domain.Common;
 
 namespace Memorandum.Domain.Documents;
 
-/// <summary>
-/// Импорт документа из XML: что распознано, что перенесено и что пришлось пропустить.
-/// Исходный файл сохраняется отдельно, чтобы пользователь мог скачать его «как есть».
-/// </summary>
+/// <summary>Импорт XML в документ: исходный файл и итог переноса.</summary>
+/// <remarks>
+/// Неудачная и частичная попытка тоже сохраняется: пользователь должен видеть,
+/// какой файл он загружал и что не перенеслось.
+/// </remarks>
 public sealed class DocumentImport : AuditableEntity
 {
+    public const int FileNameMaxLength = 255;
     public const int SchemaCodeMaxLength = 20;
-    public const int FileNameMaxLength = 300;
-    public const int DetailsJsonMaxLength = 20_000;
-    public const int StorageKeyMaxLength = 300;
-    public const int Sha256Length = 64;
+    public const int WarningMaxLength = 500;
+
+    private static readonly JsonSerializerOptions Options = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
 
     private DocumentImport()
     {
+    }
+
+    internal DocumentImport(
+        Document document,
+        string? fileName,
+        string? detectedSchemaCode,
+        ImportStatus status,
+        int importedFields,
+        IReadOnlyCollection<string> warnings,
+        byte[]? originalFile,
+        DateTime utcNow,
+        string? createdBy)
+    {
+        Document = document;
+        DocumentId = document.Id;
+        FileName = Guard.Optional(fileName, "Имя файла", FileNameMaxLength);
+        DetectedSchemaCode = Guard.Optional(detectedSchemaCode, "Версия схемы XML", SchemaCodeMaxLength);
+        Status = status;
+        ImportedFields = Guard.NotNegative(importedFields, "Количество полей");
+        WarningsJson = JsonSerializer.Serialize(warnings, Options);
+        OriginalFile = originalFile;
+        ImportedAt = utcNow;
+
+        MarkCreated(utcNow, createdBy);
     }
 
     public long DocumentId { get; private set; }
 
     public Document Document { get; private set; } = null!;
 
-    /// <summary>Распознанная версия схемы; <c>null</c>, если схема не определена.</summary>
+    public string? FileName { get; private set; }
+
+    /// <summary>Версия схемы, определённая по самому XML.</summary>
     public string? DetectedSchemaCode { get; private set; }
 
-    /// <summary>Исходный файл в хранилище: ключ, размер и хеш. Скачивается «как есть».</summary>
-    public string? OriginalFileKey { get; private set; }
+    public ImportStatus Status { get; private set; }
 
-    public long? OriginalFileSizeBytes { get; private set; }
-
-    public string? OriginalFileSha256 { get; private set; }
-
-    /// <summary>Имя загруженного файла: нужно, чтобы показать, откуда пришли данные.</summary>
-    public string FileName { get; private set; } = null!;
-
-    /// <summary>Сколько полей удалось перенести.</summary>
     public int ImportedFields { get; private set; }
 
-    /// <summary>Предупреждения импорта: путь, причина. Хранятся как JSON-массив.</summary>
-    public string? WarningsJson { get; private set; }
+    /// <summary>Что не удалось перенести: JSON-массив сообщений.</summary>
+    public string WarningsJson { get; private set; } = "[]";
 
-    internal DocumentImport(
-        string? fileName,
-        string? detectedSchemaCode,
-        int importedFields,
-        string? warningsJson,
-        DateTime utcNow,
-        string? createdBy = null,
-        string? originalFileKey = null,
-        long? originalFileSizeBytes = null,
-        string? originalFileSha256 = null)
-    {
-        if (importedFields < 0)
-            throw new ValidationException(ErrorCodes.Validation, "Число перенесённых полей не может быть отрицательным.");
+    /// <summary>Исходный файл: нужен для повторного разбора спорных случаев.</summary>
+    public byte[]? OriginalFile { get; private set; }
 
-        FileName = Guard.Required(fileName, "Имя файла", FileNameMaxLength);
-        DetectedSchemaCode = Guard.Optional(detectedSchemaCode, "Код схемы", SchemaCodeMaxLength);
-        ImportedFields = importedFields;
-        WarningsJson = Guard.Optional(warningsJson, "Предупреждения", DetailsJsonMaxLength);
-        OriginalFileKey = Guard.Optional(originalFileKey, "Ключ хранилища", StorageKeyMaxLength);
-        OriginalFileSha256 = Guard.Optional(originalFileSha256, "Хеш файла", Sha256Length);
+    public DateTime ImportedAt { get; private set; }
 
-        if (originalFileSizeBytes is < 0)
-            throw new ValidationException(ErrorCodes.Validation, "Размер файла не может быть отрицательным.");
-
-        OriginalFileSizeBytes = originalFileSizeBytes;
-
-        MarkCreated(utcNow, createdBy);
-    }
+    public IReadOnlyCollection<string> Warnings =>
+        JsonSerializer.Deserialize<string[]>(WarningsJson, Options) ?? [];
 }

@@ -37,6 +37,20 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
             .HasColumnName("is_active")
             .IsRequired();
 
+        // Иностранная организация: другая модель адреса в XML.
+        builder.Property(organization => organization.IsForeign)
+            .HasColumnName("is_foreign")
+            .IsRequired();
+
+        // НРС НОПРИЗ заменил членство в СРО начиная с версии схемы 01.07.
+        builder.Property(organization => organization.NrsNopriz)
+            .HasColumnName("nrs_nopriz")
+            .HasMaxLength(Organization.NrsNoprizMaxLength);
+
+        builder.Property(organization => organization.SelfRegulatoryOrganization)
+            .HasColumnName("self_regulatory_organization")
+            .HasMaxLength(Organization.AddressMaxLength);
+
         // Коллекция только для чтения: EF пишет в backing-поле, а не в свойство.
         builder.HasMany(organization => organization.Memberships)
             .WithOne(membership => membership.Organization)

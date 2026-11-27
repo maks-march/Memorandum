@@ -17,7 +17,8 @@ public sealed class ProjectTests
         OrganizationEntity.Create("ООО «Проект»", Now).WithId(OrgId);
 
     private static Project NewProject(OrganizationEntity? organization = null) =>
-        Project.Create(organization ?? NewOrganization(), "Жилой комплекс", "Дом № 1", Now);
+        Project.Create(organization ?? NewOrganization(), "Жилой комплекс", "Дом № 1",
+            WorkType.Construction, ObjectKind.NonIndustrial, Now);
 
     [Fact]
     public void Create_fills_fields_and_is_active()
@@ -34,7 +35,7 @@ public sealed class ProjectTests
     public void Create_rejects_empty_name()
     {
         var exception = Assert.Throws<ValidationException>(() =>
-            Project.Create(NewOrganization(), " ", "Дом", Now));
+            Project.Create(NewOrganization(), " ", "Дом", WorkType.Construction, ObjectKind.NonIndustrial, Now));
 
         Assert.Equal(ErrorCodes.Required, exception.Code);
     }
@@ -57,11 +58,11 @@ public sealed class ProjectTests
         project.Archive(Now);
 
         var exception = Assert.Throws<ConflictException>(() =>
-            project.Update("Новое", "Дом", Now));
+            project.Update(NewOrganization(), "Новое", "Дом", WorkType.Construction, ObjectKind.NonIndustrial, Now));
         Assert.Equal(ErrorCodes.ProjectArchived, exception.Code);
 
         project.Restore(Now);
-        project.Update("Новое", "Дом", Now);
+        project.Update(NewOrganization(), "Новое", "Дом", WorkType.Construction, ObjectKind.NonIndustrial, Now);
         Assert.Equal("Новое", project.Name);
     }
 
@@ -124,11 +125,33 @@ public sealed class ProjectTests
     {
         var project = NewProject();
 
-        project.Update("Новый проект", "Дом № 2", Now,
-            addressText: "  Екатеринбург  ", code: "  123-ПЗ  ");
+        project.Update(NewOrganization(), "Новый проект", "Дом № 2",
+            WorkType.Reconstruction, ObjectKind.Linear, Now,
+            addressText: "  Екатеринбург  ", code: "  123-ПЗ  ",
+            regionCode: "66", oktmoCode: "65701000", oktmoName: "Екатеринбург");
 
         Assert.Equal("Новый проект", project.Name);
         Assert.Equal("Екатеринбург", project.AddressText);
         Assert.Equal("123-ПЗ", project.Code);
+        Assert.Equal(WorkType.Reconstruction, project.WorkType);
+        Assert.Equal(ObjectKind.Linear, project.ObjectKind);
+        Assert.Equal("66", project.RegionCode);
+        Assert.Equal("65701000", project.OktmoCode);
+    }
+
+    [Fact]
+    public void Update_rejects_invalid_region_and_oktmo()
+    {
+        var project = NewProject();
+
+        var region = Assert.Throws<ValidationException>(() =>
+            project.Update(NewOrganization(), "Проект", "Дом", WorkType.Construction, ObjectKind.Linear,
+                Now, regionCode: "660"));
+        Assert.Equal(ErrorCodes.InvalidFormat, region.Code);
+
+        var oktmo = Assert.Throws<ValidationException>(() =>
+            project.Update(NewOrganization(), "Проект", "Дом", WorkType.Construction, ObjectKind.Linear,
+                Now, oktmoCode: "123"));
+        Assert.Equal(ErrorCodes.InvalidFormat, oktmo.Code);
     }
 }

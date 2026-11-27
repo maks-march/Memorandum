@@ -1,4 +1,3 @@
-
 namespace Memorandum.Api.Contracts.Documents;
 
 /// <summary>Пояснительная записка в списке: <c>/api/v1/documents</c>.</summary>
@@ -8,7 +7,7 @@ namespace Memorandum.Api.Contracts.Documents;
 /// <param name="Title">Заголовок документа.</param>
 /// <param name="OrganizationName">Организация, которой принадлежит документ.</param>
 /// <param name="Author">Автор последней правки.</param>
-/// <param name="Status">Draft, Verified, HasErrors или Archived.</param>
+/// <param name="Status">draft, verified, has_errors или archived.</param>
 /// <param name="SchemaCode">Код XML-схемы Минстроя.</param>
 /// <param name="UpdatedAt">Момент последнего изменения.</param>
 public sealed record DocumentHttpResponse(
@@ -31,7 +30,7 @@ public sealed record DocumentHttpResponse(
             "Пояснительная записка",
             "ООО «Проект»",
             "Иванов Иван Иванович",
-            "Draft",
+            "draft",
             "01.07",
             new DateTime(2026, 9, 4, 14, 20, 0, DateTimeKind.Utc));
 
@@ -39,8 +38,8 @@ public sealed record DocumentHttpResponse(
     public static IReadOnlyList<DocumentHttpResponse> MockList() =>
         [
             Mock(1, 1),
-            Mock(2, 1) with { Title = "Записка - ред. 2", Status = "Verified", SchemaCode = "01.06" },
-            Mock(3, 2) with { ProjectName = "Реконструкция корпуса", Status = "HasErrors" },
-            Mock(4, 2) with { Status = "Archived" },
+            Mock(2, 1) with { Title = "Записка - ред. 2", Status = "verified", SchemaCode = "01.06" },
+            Mock(3, 2) with { ProjectName = "Реконструкция корпуса", Status = "has_errors" },
+            Mock(4, 2) with { Status = "archived" },
         ];
 }

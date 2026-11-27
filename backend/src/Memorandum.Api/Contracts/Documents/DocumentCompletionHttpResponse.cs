@@ -1,4 +1,3 @@
-
 namespace Memorandum.Api.Contracts.Documents;
 
 /// <summary>Прогресс заполнения документа.</summary>
@@ -13,7 +12,7 @@ public sealed record DocumentCompletionHttpResponse(
         new(
             42,
             [
-                new("object-info", Filled: 4, Total: 6, Required: 5),
+                new("object", Filled: 4, Total: 6, Required: 5),
                 new("tep", Filled: 2, Total: 9, Required: 6),
                 new("composition", Filled: 3, Total: 3, Required: 3),
             ]);

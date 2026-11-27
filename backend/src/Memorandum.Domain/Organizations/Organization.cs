@@ -11,6 +11,7 @@ public sealed class Organization : AuditableEntity
     public const int KppMaxLength = 9;
     public const int OgrnMaxLength = 15;
     public const int AddressMaxLength = 500;
+    public const int NrsNoprizMaxLength = 12;
 
     private readonly List<OrganizationMembership> _memberships = [];
     private readonly List<OrganizationInvitation> _invitations = [];
@@ -33,6 +34,21 @@ public sealed class Organization : AuditableEntity
     public string? Address { get; private set; }
 
     public bool IsActive { get; private set; }
+
+    /// <summary>
+    /// Иностранная организация: в XML адрес описывается другой моделью
+    /// (<c>tForeignAddress</c> вместо <c>tRussianAddress</c>).
+    /// </summary>
+    public bool IsForeign { get; private set; }
+
+    /// <summary>
+    /// Идентификационный номер в НРС НОПРИЗ: «П-123456», «ПИ-123456», «И-123456»
+    /// или «Не требуется». С версии 01.07 заменяет членство в СРО.
+    /// </summary>
+    public string? NrsNopriz { get; private set; }
+
+    /// <summary>Прежнее членство в СРО: остаётся для документов по схемам до 01.07.</summary>
+    public string? SelfRegulatoryOrganization { get; private set; }
 
     public IReadOnlyCollection<OrganizationMembership> Memberships => _memberships;
 
@@ -67,13 +83,36 @@ public sealed class Organization : AuditableEntity
         string? ogrn,
         string? address,
         DateTime utcNow,
-        string? updatedBy = null)
+        string? updatedBy = null,
+        bool isForeign = false,
+        string? nrsNopriz = null,
+        string? selfRegulatoryOrganization = null)
     {
-        Inn = Guard.Optional(Digits(inn, "ИНН", InnMaxLength, [10, 12]), "ИНН", InnMaxLength);
-        Kpp = Guard.Optional(Digits(kpp, "КПП", KppMaxLength, [9]), "КПП", KppMaxLength);
-        Ogrn = Guard.Optional(Digits(ogrn, "ОГРН", OgrnMaxLength, [13, 15]), "ОГРН", OgrnMaxLength);
+        // У иностранной организации российских реквизитов нет: ИНН/КПП/ОГРН не заполняются.
+        Inn = isForeign ? null : Guard.Optional(Digits(inn, "ИНН", InnMaxLength, [10, 12]), "ИНН", InnMaxLength);
+        Kpp = isForeign ? null : Guard.Optional(Digits(kpp, "КПП", KppMaxLength, [9]), "КПП", KppMaxLength);
+        Ogrn = isForeign ? null : Guard.Optional(Digits(ogrn, "ОГРН", OgrnMaxLength, [13, 15]), "ОГРН", OgrnMaxLength);
+
         Address = Guard.Optional(address, "Адрес", AddressMaxLength);
+        IsForeign = isForeign;
+        NrsNopriz = NormalizeNrs(nrsNopriz);
+        SelfRegulatoryOrganization = Guard.Optional(selfRegulatoryOrganization, "СРО", AddressMaxLength);
+
         Touch(utcNow, updatedBy);
+    }
+
+    /// <summary>НРС НОПРИЗ: номер по формату или «Не требуется».</summary>
+    private static string? NormalizeNrs(string? value)
+    {
+        var normalized = Guard.Optional(value, "НРС НОПРИЗ", NrsNoprizMaxLength);
+
+        if (normalized is null)
+            return null;
+
+        if (string.Equals(normalized, "Не требуется", StringComparison.OrdinalIgnoreCase))
+            return "Не требуется";
+
+        return Guard.Matches(normalized, "НРС НОПРИЗ", Guard.NrsNopriz(), "П-123456, ПИ-123456 или И-123456");
     }
 
     /// <summary>

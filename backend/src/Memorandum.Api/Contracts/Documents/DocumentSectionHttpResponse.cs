@@ -1,33 +1,29 @@
-
 namespace Memorandum.Api.Contracts.Documents;
 
 /// <summary>Раздел пояснительной записки: раздел редактора.</summary>
-/// <param name="Id">Идентификатор раздела.</param>
-/// <param name="Code">Код раздела по схеме.</param>
+/// <param name="Code">Код раздела: object, participants, specialists, basis, tep, composition, normatives, surveys, climate, extra.</param>
 /// <param name="Title">Название раздела.</param>
-/// <param name="SortOrder">Порядок в документе.</param>
-/// <param name="DataJson">Содержимое раздела, JSON схемы.</param>
+/// <param name="Filled">Раздел заполнен.</param>
+/// <param name="DataJson">Содержимое раздела, JSON каталога полей схемы.</param>
 public sealed record DocumentSectionHttpResponse(
-    long Id,
     string Code,
     string Title,
-    int SortOrder,
+    bool Filled,
     string? DataJson)
 {
-    /// <summary>Моковая версия для разделов документа.</summary>
-    public static DocumentSectionHttpResponse Mock(long id = 1, int sortOrder = 1) =>
+    /// <summary>Моковая версия раздела.</summary>
+    public static DocumentSectionHttpResponse Mock(string code = "object", string? title = null) =>
         new(
-            id,
-            "object-info",
-            "Сведения об объекте капитального строительства",
-            sortOrder,
-            """{"objectName":"Многоквартирный жилой дом","address":"г. Екатеринбург, ул. Ленина, 15"}""");
+            code,
+            title ?? "Сведения об объекте капитального строительства",
+            Filled: true,
+            """{"objectName":"Многоквартирный жилой дом","address":"г. Екатеринбург, ул. Ленина, 15","oktmoCode":"65701000"}""");
 
     /// <summary>Моковый список: три раздела.</summary>
     public static IReadOnlyList<DocumentSectionHttpResponse> MockList() =>
         [
-            Mock(1, 1),
-            Mock(2, 2) with { Code = "tep", Title = "Технико-экономические показатели" },
-            Mock(3, 3) with { Code = "composition", Title = "Состав проектной документации" },
+            Mock("object"),
+            Mock("tep", "Технико-экономические показатели"),
+            Mock("composition", "Состав проектной документации"),
         ];
 }

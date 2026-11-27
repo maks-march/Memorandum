@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Memorandum.Domain.Admin;
+using Memorandum.Domain.Dictionaries;
 using Memorandum.Domain.Documents;
 using Memorandum.Domain.Organizations;
 using Memorandum.Domain.Projects;
@@ -27,15 +29,27 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<Document> Documents => Set<Document>();
 
-    public DbSet<DocumentSection> DocumentSections => Set<DocumentSection>();
+    public DbSet<DocumentParticipant> DocumentParticipants => Set<DocumentParticipant>();
 
     public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
 
+    public DbSet<DocumentCheck> DocumentChecks => Set<DocumentCheck>();
+
+    public DbSet<XmlArtifact> XmlArtifacts => Set<XmlArtifact>();
+
     public DbSet<DocumentImport> DocumentImports => Set<DocumentImport>();
+
+    public DbSet<Dictionary> Dictionaries => Set<Dictionary>();
 
     public DbSet<SchemaVersion> SchemaVersions => Set<SchemaVersion>();
 
+    public DbSet<SchemaPackageFile> SchemaPackageFiles => Set<SchemaPackageFile>();
+
     public DbSet<OrganizationInvitation> OrganizationInvitations => Set<OrganizationInvitation>();
+
+    public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
+
+    public DbSet<AppError> AppErrors => Set<AppError>();
 
     /// <summary>Ключи Data Protection: cookie и анти-CSRF токены переживают рестарт.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();

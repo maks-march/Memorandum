@@ -1,30 +1,39 @@
-
 namespace Memorandum.Api.Contracts.Schemas;
 
-/// <summary>Поле формы по каталогу схемы.</summary>
-/// <param name="FieldId">Стабильный идентификатор поля.</param>
-/// <param name="Section">Код раздела документа.</param>
-/// <param name="Label">Название поля.</param>
-/// <param name="Kind">Тип поля: String, Number, Date, Table и т. д.</param>
-/// <param name="Required">Обязательное поле.</param>
-/// <param name="Group">Группа внутри раздела.</param>
-/// <param name="Hint">Подсказка.</param>
+/// <summary>Поле формы из каталога версии схемы.</summary>
+/// <param name="FieldId">Идентификатор поля внутри раздела.</param>
+/// <param name="Section">Код раздела: object, tep, composition и т. д.</param>
+/// <param name="Label">Подпись поля.</param>
+/// <param name="Kind">Виджет: String, Text, Number, Date, Boolean, Reference, Table.</param>
+/// <param name="Required">Поле обязательное для проверки.</param>
+/// <param name="Dictionary">Справочник для Reference и Table.</param>
+/// <param name="XmlPath">Куда значение попадает в XML.</param>
 public sealed record SchemaFieldHttpResponse(
     string FieldId,
     string Section,
     string Label,
     string Kind,
     bool Required,
-    string? Group,
-    string? Hint)
+    string? Dictionary,
+    string? XmlPath)
 {
-    /// <summary>Моковый каталог полей для <c>/api/v1/mocks/schema-versions/{code}/fields</c>.</summary>
+    /// <summary>Моковый каталог полей.</summary>
+    public static SchemaFieldHttpResponse Mock(string fieldId = "objectName", string section = "object") =>
+        new(
+            fieldId,
+            section,
+            "Наименование объекта",
+            "String",
+            Required: true,
+            Dictionary: null,
+            "/Документ/Объект/Наименование");
+
+    /// <summary>Моковый список полей трёх разделов.</summary>
     public static IReadOnlyList<SchemaFieldHttpResponse> MockList() =>
         [
-            new("object-info.name", "object-info", "Наименование объекта", "String", Required: true, "Объект", null),
-            new("object-info.area", "object-info", "Площадь, м²", "Number", Required: true, "Объект", null),
-            new("object-info.address", "object-info", "Адрес", "String", Required: false, "Объект", null),
-            new("tep.rows", "tep", "Технико-экономические показатели", "Table", Required: true, "ТЭП", "Строки таблицы"),
-            new("composition.rows", "composition", "Состав документации", "Table", Required: true, "Состав", null),
+            Mock(),
+            Mock("oktmoCode", "object") with { Label = "Код ОКТМО", Dictionary = "oktmo" },
+            Mock("rows", "tep") with { Label = "Показатели", Kind = "Table", Dictionary = "tep-catalog" },
+            Mock("documents", "composition") with { Label = "Состав документации", Kind = "Table" },
         ];
 }
