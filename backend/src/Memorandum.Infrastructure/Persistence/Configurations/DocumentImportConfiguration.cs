@@ -15,43 +15,42 @@ public sealed class DocumentImportConfiguration : IEntityTypeConfiguration<Docum
             .HasColumnName("document_id")
             .IsRequired();
 
+        builder.Property(import => import.FileName)
+            .HasColumnName("file_name")
+            .HasMaxLength(DocumentImport.FileNameMaxLength);
+
         builder.Property(import => import.DetectedSchemaCode)
             .HasColumnName("detected_schema_code")
             .HasMaxLength(DocumentImport.SchemaCodeMaxLength);
 
-        builder.Property(import => import.FileName)
-            .HasColumnName("file_name")
-            .HasMaxLength(DocumentImport.FileNameMaxLength)
+        builder.Property(import => import.Status)
+            .HasColumnName("status")
+            .HasMaxLength(16)
+            .HasConversion<string>()
             .IsRequired();
 
         builder.Property(import => import.ImportedFields)
             .HasColumnName("imported_fields")
             .IsRequired();
 
-        // Предупреждения импорта — JSON-массив {path, reason}.
+        // Предупреждения импорта — JSON-массив сообщений.
         builder.Property(import => import.WarningsJson)
             .HasColumnName("warnings_json")
-            .HasColumnType("jsonb");
+            .HasColumnType("jsonb")
+            .IsRequired();
 
-        // Исходный файл — поля импорта: ключ в хранилище, размер и хеш.
-        builder.Property(import => import.OriginalFileKey)
-            .HasColumnName("original_file_key")
-            .HasMaxLength(DocumentImport.StorageKeyMaxLength);
+        builder.Property(import => import.ImportedAt)
+            .HasColumnName("imported_at")
+            .IsRequired();
 
-        builder.Property(import => import.OriginalFileSizeBytes)
-            .HasColumnName("original_file_size_bytes");
+        // Исходный файл хранится целиком: импорт без потери данных.
+        builder.Property(import => import.OriginalFile)
+            .HasColumnName("original_file")
+            .HasColumnType("bytea");
 
-        builder.Property(import => import.OriginalFileSha256)
-            .HasColumnName("original_file_sha256")
-            .HasMaxLength(DocumentImport.Sha256Length);
+        builder.Ignore(import => import.Warnings);
 
-        builder.HasOne(import => import.Document)
-            .WithMany(document => document.Imports)
-            .HasForeignKey(import => import.DocumentId)
-            .HasConstraintName("fk_document_imports_documents")
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasIndex(import => import.DocumentId)
-            .HasDatabaseName("ix_document_imports_document_id");
+        builder.HasIndex(import => new { import.DocumentId, import.ImportedAt })
+            .HasDatabaseName("ix_document_imports_document_id_imported_at");
     }
 }

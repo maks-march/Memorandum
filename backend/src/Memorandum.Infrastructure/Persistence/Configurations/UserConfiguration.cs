@@ -34,6 +34,11 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasColumnName("phone")
             .HasMaxLength(User.PhoneMaxLength);
 
+        // Глобальная роль вне организации: доступ к администрированию сервиса.
+        builder.Property(user => user.IsServiceAdmin)
+            .HasColumnName("is_service_admin")
+            .IsRequired();
+
         builder.Property(user => user.IsActive)
             .HasColumnName("is_active")
             .IsRequired();

@@ -5,7 +5,10 @@ namespace Memorandum.Api.Contracts.Projects;
 /// <param name="Id">Идентификатор проекта.</param>
 /// <param name="Name">Наименование проекта.</param>
 /// <param name="ObjectName">Наименование объекта капитального строительства.</param>
-/// <param name="WorkType">Вид работ: Construction или Reconstruction.</param>
+/// <param name="WorkType">Вид работ: Construction, Reconstruction, MajorRepair или Demolition.</param>
+/// <param name="ObjectKind">Тип объекта: Linear, Industrial или NonIndustrial.</param>
+/// <param name="RegionCode">Код субъекта РФ.</param>
+/// <param name="OktmoCode">Код ОКТМО: обязателен в XML с версии 01.06.</param>
 /// <param name="AddressText">Местоположение объекта.</param>
 /// <param name="Code">Шифр проекта в организации.</param>
 /// <param name="Responsible">Ответственный сотрудник.</param>
@@ -17,7 +20,10 @@ public sealed record ProjectHttpResponse(
     string Name,
     string ObjectName,
     string WorkType,
+    string ObjectKind,
     string? AddressText,
+    string? RegionCode,
+    string? OktmoCode,
     string? Code,
     UserRefHttpResponse? Responsible,
     bool IsArchived,
@@ -31,7 +37,10 @@ public sealed record ProjectHttpResponse(
             "Жилой комплекс № 1",
             "Многоквартирный жилой дом",
             "Construction",
+            "NonIndustrial",
             "г. Екатеринбург, ул. Ленина, 15",
+            "66",
+            "65701000",
             "1234-ПЗ",
             UserRefHttpResponse.Mock(),
             IsArchived: false,
@@ -47,6 +56,8 @@ public sealed record ProjectHttpResponse(
                 Name = "Реконструкция корпуса",
                 ObjectName = "Корпус № 2",
                 WorkType = "Reconstruction",
+                ObjectKind = "Linear",
+                OktmoCode = "65701000",
                 IsArchived = true,
                 DocumentsCount = 1,
             },

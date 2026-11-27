@@ -14,6 +14,9 @@ public sealed class Project : AuditableEntity
     public const int ObjectNameMaxLength = 500;
     public const int AddressMaxLength = 500;
     public const int CodeMaxLength = 50;
+    public const int RegionCodeMaxLength = 2;
+    public const int OktmoCodeMaxLength = 11;
+    public const int OktmoNameMaxLength = 200;
 
     private readonly List<ProjectMember> _members = [];
 
@@ -39,6 +42,20 @@ public sealed class Project : AuditableEntity
     /// <summary>Ответственный сотрудник: на него ориентируются при поиске документов.</summary>
     public long? ResponsibleUserId { get; private set; }
 
+    /// <summary>Вид работ: строительство, реконструкция, капремонт, снос.</summary>
+    public WorkType WorkType { get; private set; } = WorkType.Construction;
+
+    /// <summary>Тип объекта: линейный, производственный, непроизводственный.</summary>
+    public ObjectKind ObjectKind { get; private set; } = ObjectKind.NonIndustrial;
+
+    /// <summary>Код субъекта РФ: входит в адрес объекта и в XML.</summary>
+    public string? RegionCode { get; private set; }
+
+    /// <summary>Код ОКТМО: с версии схемы 01.06 обязателен в XML.</summary>
+    public string? OktmoCode { get; private set; }
+
+    public string? OktmoName { get; private set; }
+
     public bool IsArchived { get; private set; }
 
     /// <summary>Актуальный состав участников (удалённые остаются в коллекции неактивными).</summary>
@@ -48,9 +65,14 @@ public sealed class Project : AuditableEntity
         Organization organization,
         string? name,
         string? objectName,
+        WorkType workType,
+        ObjectKind objectKind,
         DateTime utcNow,
         string? addressText = null,
         string? code = null,
+        string? regionCode = null,
+        string? oktmoCode = null,
+        string? oktmoName = null,
         string? createdBy = null)
     {
         ArgumentNullException.ThrowIfNull(organization);
@@ -62,12 +84,11 @@ public sealed class Project : AuditableEntity
         {
             Organization = organization,
             OrganizationId = organization.Id,
-            Name = Guard.Required(name, "Наименование проекта", NameMaxLength),
-            ObjectName = Guard.Required(objectName, "Наименование объекта", ObjectNameMaxLength),
-            AddressText = Guard.Optional(addressText, "Адрес объекта", AddressMaxLength),
-            Code = Guard.Optional(code, "Шифр проекта", CodeMaxLength),
             IsArchived = false,
         };
+
+        project.Apply(name, objectName, workType, objectKind,
+            addressText, code, regionCode, oktmoCode, oktmoName);
 
         project.MarkCreated(utcNow, createdBy);
         return project;
@@ -75,21 +96,63 @@ public sealed class Project : AuditableEntity
 
     /// <summary>Правка карточки проекта. Организация и архив меняются отдельными методами.</summary>
     public void Update(
+        Organization organization,
         string? name,
         string? objectName,
+        WorkType workType,
+        ObjectKind objectKind,
         DateTime utcNow,
         string? addressText = null,
         string? code = null,
+        string? regionCode = null,
+        string? oktmoCode = null,
+        string? oktmoName = null,
         string? updatedBy = null)
     {
+        ArgumentNullException.ThrowIfNull(organization);
         EnsureNotArchived("Нельзя изменить архивный проект.");
 
+        Apply(name, objectName, workType, objectKind,
+            addressText, code, regionCode, oktmoCode, oktmoName);
+
+        Touch(utcNow, updatedBy);
+    }
+
+    /// <summary>Код субъекта РФ: формат важнее длины, иначе «660» даст ошибку длины.</summary>
+    internal static string? NormalizeRegion(string? regionCode) =>
+        Guard.Optional(regionCode, "Код региона") is { } region
+            ? Guard.Matches(region, "Код региона", Guard.RegionCode(), "две цифры")
+            : null;
+
+    /// <summary>Код ОКТМО: 8 или 11 цифр.</summary>
+    internal static string? NormalizeOktmo(string? oktmoCode) =>
+        Guard.Optional(oktmoCode, "Код ОКТМО") is { } oktmo
+            ? Guard.Matches(oktmo, "Код ОКТМО", Guard.Oktmo(), "8 или 11 цифр")
+            : null;
+
+    /// <summary>Поля карточки без аудита: общие для создания и правки.</summary>
+    private void Apply(
+        string? name,
+        string? objectName,
+        WorkType workType,
+        ObjectKind objectKind,
+        string? addressText,
+        string? code,
+        string? regionCode,
+        string? oktmoCode,
+        string? oktmoName)
+    {
         Name = Guard.Required(name, "Наименование проекта", NameMaxLength);
         ObjectName = Guard.Required(objectName, "Наименование объекта", ObjectNameMaxLength);
         AddressText = Guard.Optional(addressText, "Адрес объекта", AddressMaxLength);
         Code = Guard.Optional(code, "Шифр проекта", CodeMaxLength);
+        WorkType = workType;
+        ObjectKind = objectKind;
 
-        Touch(utcNow, updatedBy);
+        RegionCode = NormalizeRegion(regionCode);
+        OktmoCode = NormalizeOktmo(oktmoCode);
+
+        OktmoName = Guard.Optional(oktmoName, "Наименование ОКТМО", OktmoNameMaxLength);
     }
 
     /// <summary>Ответственный — только активный участник проекта: иначе он не увидит документы.</summary>

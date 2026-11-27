@@ -22,6 +22,221 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Memorandum.Domain.Admin.AppError", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("LastOccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_occurred_at");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("level");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("message");
+
+                    b.Property<long?>("OrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("Path")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("path");
+
+                    b.Property<int>("RepeatCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("repeat_count");
+
+                    b.Property<string>("StackTrace")
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)")
+                        .HasColumnName("stack_trace");
+
+                    b.Property<string>("TraceId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("trace_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("updated_by");
+
+                    b.Property<long?>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code", "LastOccurredAt")
+                        .HasDatabaseName("ix_app_errors_code_last_occurred_at");
+
+                    b.ToTable("app_errors", (string)null);
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Admin.AuditEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("action");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Entity")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("entity");
+
+                    b.Property<long?>("EntityId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("entity_id");
+
+                    b.Property<long?>("OrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload_json");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("updated_by");
+
+                    b.Property<long?>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "CreatedAt")
+                        .HasDatabaseName("ix_audit_entries_organization_id_created_at");
+
+                    b.HasIndex("Entity", "EntityId", "CreatedAt")
+                        .HasDatabaseName("ix_audit_entries_entity_entity_id_created_at");
+
+                    b.ToTable("audit_entries", (string)null);
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Dictionaries.Dictionary", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("ParentCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("parent_code");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Kind", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_dictionaries_kind_code");
+
+                    b.HasIndex("Kind", "ParentCode")
+                        .HasDatabaseName("ix_dictionaries_kind_parent_code");
+
+                    b.HasIndex("Kind", "IsActive", "SortOrder")
+                        .HasDatabaseName("ix_dictionaries_kind_is_active_sort_order");
+
+                    b.ToTable("dictionaries", (string)null);
+                });
+
             modelBuilder.Entity("Memorandum.Domain.Documents.Document", b =>
                 {
                     b.Property<long>("Id")
@@ -31,29 +246,22 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<int>("CheckErrorCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("check_error_count");
-
-                    b.Property<string>("CheckErrorsJson")
-                        .HasColumnType("jsonb")
-                        .HasColumnName("check_errors_json");
-
-                    b.Property<int>("CheckWarningCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("check_warning_count");
-
-                    b.Property<DateTime?>("CheckedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("checked_at");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<bool>("IsArchived")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_archived");
+                    b.Property<string>("DataJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("data_json");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("organization_id");
 
                     b.Property<long>("ProjectId")
                         .HasColumnType("bigint")
@@ -63,11 +271,9 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("responsible_user_id");
 
-                    b.Property<string>("SchemaCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("schema_code");
+                    b.Property<long>("SchemaVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("schema_version_id");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -75,10 +281,15 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(16)")
                         .HasColumnName("status");
 
+                    b.Property<string>("StatusBeforeArchiving")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status_before_archiving");
+
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("title");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -90,28 +301,83 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("updated_by");
 
-                    b.Property<string>("XmlSha256")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("xml_sha256");
-
-                    b.Property<long?>("XmlSizeBytes")
-                        .HasColumnType("bigint")
-                        .HasColumnName("xml_size_bytes");
-
-                    b.Property<bool?>("XmlValid")
-                        .HasColumnType("boolean")
-                        .HasColumnName("xml_valid");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("ProjectId", "IsArchived")
-                        .HasDatabaseName("ix_documents_project_id_is_archived");
+                    b.HasIndex("ResponsibleUserId");
+
+                    b.HasIndex("SchemaVersionId");
+
+                    b.HasIndex("OrganizationId", "DeletedAt")
+                        .HasDatabaseName("ix_documents_organization_id_deleted_at");
+
+                    b.HasIndex("ProjectId", "Status")
+                        .HasDatabaseName("ix_documents_project_id_status");
 
                     b.HasIndex("Status", "UpdatedAt")
                         .HasDatabaseName("ix_documents_status_updated_at");
 
                     b.ToTable("documents", (string)null);
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Documents.DocumentCheck", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("checked_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("DocumentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("document_id");
+
+                    b.Property<int>("ErrorCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("error_count");
+
+                    b.Property<string>("IssuesJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("issues_json");
+
+                    b.Property<bool>("Ok")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ok");
+
+                    b.Property<long>("SchemaVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("schema_version_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("WarningCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("warning_count");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SchemaVersionId");
+
+                    b.HasIndex("DocumentId", "CheckedAt")
+                        .HasDatabaseName("ix_document_checks_document_id_checked_at");
+
+                    b.ToTable("document_checks", (string)null);
                 });
 
             modelBuilder.Entity("Memorandum.Domain.Documents.DocumentImport", b =>
@@ -137,28 +403,27 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasColumnName("document_id");
 
                     b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("file_name");
+
+                    b.Property<DateTime>("ImportedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("imported_at");
 
                     b.Property<int>("ImportedFields")
                         .HasColumnType("integer")
                         .HasColumnName("imported_fields");
 
-                    b.Property<string>("OriginalFileKey")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)")
-                        .HasColumnName("original_file_key");
+                    b.Property<byte[]>("OriginalFile")
+                        .HasColumnType("bytea")
+                        .HasColumnName("original_file");
 
-                    b.Property<string>("OriginalFileSha256")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("original_file_sha256");
-
-                    b.Property<long?>("OriginalFileSizeBytes")
-                        .HasColumnType("bigint")
-                        .HasColumnName("original_file_size_bytes");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -170,18 +435,19 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasColumnName("updated_by");
 
                     b.Property<string>("WarningsJson")
+                        .IsRequired()
                         .HasColumnType("jsonb")
                         .HasColumnName("warnings_json");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DocumentId")
-                        .HasDatabaseName("ix_document_imports_document_id");
+                    b.HasIndex("DocumentId", "ImportedAt")
+                        .HasDatabaseName("ix_document_imports_document_id_imported_at");
 
                     b.ToTable("document_imports", (string)null);
                 });
 
-            modelBuilder.Entity("Memorandum.Domain.Documents.DocumentSection", b =>
+            modelBuilder.Entity("Memorandum.Domain.Documents.DocumentParticipant", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -190,33 +456,54 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("code");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<string>("DataJson")
-                        .HasColumnType("jsonb")
-                        .HasColumnName("data_json");
 
                     b.Property<long>("DocumentId")
                         .HasColumnType("bigint")
                         .HasColumnName("document_id");
 
-                    b.Property<int>("SortOrder")
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("full_name");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("NrsNopriz")
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("nrs_nopriz");
+
+                    b.Property<int>("Order")
                         .HasColumnType("integer")
                         .HasColumnName("sort_order");
 
-                    b.Property<string>("Title")
+                    b.Property<long?>("OrganizationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("PartyType")
                         .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("party_type");
+
+                    b.Property<string>("Position")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
-                        .HasColumnName("title");
+                        .HasColumnName("position");
+
+                    b.Property<string>("Snils")
+                        .HasMaxLength(14)
+                        .HasColumnType("character varying(14)")
+                        .HasColumnName("snils");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -227,13 +514,24 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("updated_by");
 
+                    b.Property<long?>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("DocumentId", "Code")
-                        .IsUnique()
-                        .HasDatabaseName("ux_document_sections_document_id_code");
+                    b.HasIndex("DocumentId")
+                        .HasDatabaseName("ix_document_participants_document_id");
 
-                    b.ToTable("document_sections", (string)null);
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("DocumentId", "Kind")
+                        .IsUnique()
+                        .HasDatabaseName("ux_document_participants_document_id_kind");
+
+                    b.ToTable("document_participants", (string)null);
                 });
 
             modelBuilder.Entity("Memorandum.Domain.Documents.DocumentVersion", b =>
@@ -246,8 +544,8 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<string>("Comment")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
                         .HasColumnName("comment");
 
                     b.Property<DateTime>("CreatedAt")
@@ -295,6 +593,60 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                     b.ToTable("document_versions", (string)null);
                 });
 
+            modelBuilder.Entity("Memorandum.Domain.Documents.XmlArtifact", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CheckId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("check_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("DocumentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("document_id");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("generated_at");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CheckId");
+
+                    b.HasIndex("DocumentId", "GeneratedAt")
+                        .HasDatabaseName("ix_xml_artifacts_document_id_generated_at");
+
+                    b.ToTable("xml_artifacts", (string)null);
+                });
+
             modelBuilder.Entity("Memorandum.Domain.Organizations.Organization", b =>
                 {
                     b.Property<long>("Id")
@@ -322,6 +674,10 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
 
+                    b.Property<bool>("IsForeign")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_foreign");
+
                     b.Property<string>("Kpp")
                         .HasMaxLength(9)
                         .HasColumnType("character varying(9)")
@@ -333,10 +689,20 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
+                    b.Property<string>("NrsNopriz")
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("nrs_nopriz");
+
                     b.Property<string>("Ogrn")
                         .HasMaxLength(15)
                         .HasColumnType("character varying(15)")
                         .HasColumnName("ogrn");
+
+                    b.Property<string>("SelfRegulatoryOrganization")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("self_regulatory_organization");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -519,15 +885,36 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
+                    b.Property<string>("ObjectKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("object_kind");
+
                     b.Property<string>("ObjectName")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("object_name");
 
+                    b.Property<string>("OktmoCode")
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)")
+                        .HasColumnName("oktmo_code");
+
+                    b.Property<string>("OktmoName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("oktmo_name");
+
                     b.Property<long>("OrganizationId")
                         .HasColumnType("bigint")
                         .HasColumnName("organization_id");
+
+                    b.Property<string>("RegionCode")
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)")
+                        .HasColumnName("region_code");
 
                     b.Property<long?>("ResponsibleUserId")
                         .HasColumnType("bigint")
@@ -541,6 +928,12 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("updated_by");
+
+                    b.Property<string>("WorkType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("work_type");
 
                     b.HasKey("Id");
 
@@ -598,6 +991,70 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                     b.ToTable("project_members", (string)null);
                 });
 
+            modelBuilder.Entity("Memorandum.Domain.Schemas.SchemaPackageFile", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("content");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("path");
+
+                    b.Property<long>("SchemaVersionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("schema_version_id");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SchemaVersionId", "Path")
+                        .IsUnique()
+                        .HasDatabaseName("ux_schema_package_files_schema_version_id_path");
+
+                    b.ToTable("schema_package_files", (string)null);
+                });
+
             modelBuilder.Entity("Memorandum.Domain.Schemas.SchemaVersion", b =>
                 {
                     b.Property<long>("Id")
@@ -613,6 +1070,15 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("code");
 
+                    b.Property<string>("CompileMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("compile_message");
+
+                    b.Property<DateTime?>("CompiledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("compiled_at");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -620,6 +1086,11 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("EffectiveFrom")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("effective_from");
+
+                    b.Property<string>("EntryPoint")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("entry_point");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
@@ -637,6 +1108,11 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("sha256");
+
+                    b.Property<string>("TargetNamespace")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("target_namespace");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -741,6 +1217,10 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
 
+                    b.Property<bool>("IsServiceAdmin")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_service_admin");
+
                     b.Property<string>("NormalizedEmail")
                         .IsRequired()
                         .HasMaxLength(254)
@@ -822,6 +1302,13 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Memorandum.Domain.Documents.Document", b =>
                 {
+                    b.HasOne("Memorandum.Domain.Organizations.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_documents_organizations");
+
                     b.HasOne("Memorandum.Domain.Projects.Project", "Project")
                         .WithMany()
                         .HasForeignKey("ProjectId")
@@ -829,7 +1316,99 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_documents_projects");
 
+                    b.HasOne("Memorandum.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("ResponsibleUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_documents_responsible_user");
+
+                    b.HasOne("Memorandum.Domain.Schemas.SchemaVersion", "SchemaVersion")
+                        .WithMany()
+                        .HasForeignKey("SchemaVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_documents_schema_versions");
+
+                    b.OwnsOne("Memorandum.Domain.Documents.DocumentObjectSnapshot", "Object", b1 =>
+                        {
+                            b1.Property<long>("DocumentId")
+                                .HasColumnType("bigint");
+
+                            b1.Property<string>("AddressText")
+                                .HasMaxLength(500)
+                                .HasColumnType("character varying(500)")
+                                .HasColumnName("object_address");
+
+                            b1.Property<string>("ObjectKind")
+                                .IsRequired()
+                                .HasMaxLength(32)
+                                .HasColumnType("character varying(32)")
+                                .HasColumnName("object_kind");
+
+                            b1.Property<string>("ObjectName")
+                                .IsRequired()
+                                .HasMaxLength(500)
+                                .HasColumnType("character varying(500)")
+                                .HasColumnName("object_name");
+
+                            b1.Property<string>("OktmoCode")
+                                .HasMaxLength(11)
+                                .HasColumnType("character varying(11)")
+                                .HasColumnName("oktmo_code");
+
+                            b1.Property<string>("OktmoName")
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("oktmo_name");
+
+                            b1.Property<string>("RegionCode")
+                                .HasMaxLength(2)
+                                .HasColumnType("character varying(2)")
+                                .HasColumnName("region_code");
+
+                            b1.Property<string>("WorkType")
+                                .IsRequired()
+                                .HasMaxLength(32)
+                                .HasColumnType("character varying(32)")
+                                .HasColumnName("work_type");
+
+                            b1.HasKey("DocumentId");
+
+                            b1.ToTable("documents");
+
+                            b1.WithOwner()
+                                .HasForeignKey("DocumentId");
+                        });
+
+                    b.Navigation("Object")
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+
                     b.Navigation("Project");
+
+                    b.Navigation("SchemaVersion");
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Documents.DocumentCheck", b =>
+                {
+                    b.HasOne("Memorandum.Domain.Documents.Document", "Document")
+                        .WithMany("Checks")
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_document_checks_documents");
+
+                    b.HasOne("Memorandum.Domain.Schemas.SchemaVersion", "SchemaVersion")
+                        .WithMany()
+                        .HasForeignKey("SchemaVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_document_checks_schema_versions");
+
+                    b.Navigation("Document");
+
+                    b.Navigation("SchemaVersion");
                 });
 
             modelBuilder.Entity("Memorandum.Domain.Documents.DocumentImport", b =>
@@ -844,14 +1423,26 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                     b.Navigation("Document");
                 });
 
-            modelBuilder.Entity("Memorandum.Domain.Documents.DocumentSection", b =>
+            modelBuilder.Entity("Memorandum.Domain.Documents.DocumentParticipant", b =>
                 {
                     b.HasOne("Memorandum.Domain.Documents.Document", "Document")
-                        .WithMany("Sections")
+                        .WithMany("Participants")
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_document_sections_documents");
+                        .HasConstraintName("fk_document_participants_documents");
+
+                    b.HasOne("Memorandum.Domain.Organizations.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_document_participants_organizations");
+
+                    b.HasOne("Memorandum.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_document_participants_users");
 
                     b.Navigation("Document");
                 });
@@ -864,6 +1455,27 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_document_versions_documents");
+
+                    b.Navigation("Document");
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Documents.XmlArtifact", b =>
+                {
+                    b.HasOne("Memorandum.Domain.Documents.DocumentCheck", "Check")
+                        .WithMany()
+                        .HasForeignKey("CheckId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_xml_artifacts_document_checks");
+
+                    b.HasOne("Memorandum.Domain.Documents.Document", "Document")
+                        .WithMany("XmlArtifacts")
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_xml_artifacts_documents");
+
+                    b.Navigation("Check");
 
                     b.Navigation("Document");
                 });
@@ -942,6 +1554,18 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_project_members_users");
 
                     b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Schemas.SchemaPackageFile", b =>
+                {
+                    b.HasOne("Memorandum.Domain.Schemas.SchemaVersion", "SchemaVersion")
+                        .WithMany("PackageFiles")
+                        .HasForeignKey("SchemaVersionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_schema_package_files_schema_versions");
+
+                    b.Navigation("SchemaVersion");
                 });
 
             modelBuilder.Entity("Memorandum.Domain.Schemas.SchemaVersion", b =>
@@ -1090,11 +1714,15 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Memorandum.Domain.Documents.Document", b =>
                 {
+                    b.Navigation("Checks");
+
                     b.Navigation("Imports");
 
-                    b.Navigation("Sections");
+                    b.Navigation("Participants");
 
                     b.Navigation("Versions");
+
+                    b.Navigation("XmlArtifacts");
                 });
 
             modelBuilder.Entity("Memorandum.Domain.Organizations.Organization", b =>
@@ -1107,6 +1735,11 @@ namespace Memorandum.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Memorandum.Domain.Projects.Project", b =>
                 {
                     b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("Memorandum.Domain.Schemas.SchemaVersion", b =>
+                {
+                    b.Navigation("PackageFiles");
                 });
 #pragma warning restore 612, 618
         }

@@ -57,6 +57,13 @@ public sealed class DocumentsMockController : ControllerBase
     public ActionResult<IReadOnlyList<DocumentImportHttpResponse>> Imports(long id) =>
         Ok(DocumentImportHttpResponse.MockList());
 
+    /// <summary>Собранные XML.</summary>
+    /// <response code="200">Артефакт по успешной проверке.</response>
+    [HttpGet("{id:long}/xml")]
+    [ProducesResponseType<IReadOnlyList<DocumentXmlArtifactHttpResponse>>(StatusCodes.Status200OK)]
+    public ActionResult<IReadOnlyList<DocumentXmlArtifactHttpResponse>> Xml(long id) =>
+        Ok(DocumentXmlArtifactHttpResponse.MockList());
+
     /// <summary>История проверок.</summary>
     /// <response code="200">Последняя проверка: ошибка и предупреждение.</response>
     [HttpGet("{id:long}/checks")]

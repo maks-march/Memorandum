@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Memorandum.Domain.Common;
 
 namespace Memorandum.Domain.Schemas;
@@ -11,7 +13,11 @@ public sealed class SchemaVersion : AuditableEntity
     public const int CodeMaxLength = 20;
     public const int TitleMaxLength = 300;
     public const int Sha256Length = 64;
+    public const int NamespaceMaxLength = 300;
+    public const int EntryPointMaxLength = 200;
+    public const int CompileMessageMaxLength = 1000;
 
+    private readonly List<SchemaPackageFile> _packageFiles = [];
     private readonly List<SchemaFile> _files = [];
     private readonly List<SchemaField> _fields = [];
 
@@ -37,6 +43,20 @@ public sealed class SchemaVersion : AuditableEntity
 
     /// <summary>Хеш загруженного комплекта: по нему видно, что файлы не подменили.</summary>
     public string? Sha256 { get; private set; }
+
+    /// <summary>Корневой XSD комплекта: с него начинается компиляция набора схем.</summary>
+    public string? EntryPoint { get; private set; }
+
+    /// <summary>Целевое пространство имён: должно совпадать с <c>targetNamespace</c> корневого XSD.</summary>
+    public string? TargetNamespace { get; private set; }
+
+    /// <summary>Итог последней компиляции комплекта: текст ошибки или отметка об успехе.</summary>
+    public string? CompileMessage { get; private set; }
+
+    public DateTime? CompiledAt { get; private set; }
+
+    /// <summary>Файлы комплекта целиком: XSD, XSL и приложения с содержимым.</summary>
+    public IReadOnlyCollection<SchemaPackageFile> PackageFiles => _packageFiles;
 
     public IReadOnlyCollection<SchemaFile> Files => _files;
 
@@ -102,6 +122,66 @@ public sealed class SchemaVersion : AuditableEntity
         Touch(utcNow, updatedBy);
     }
 
+    /// <summary>
+    /// Загрузка комплекта файлов: только целиком. Частичный комплект не компилируется,
+    /// поэтому прежние файлы заменяются одним вызовом.
+    /// </summary>
+    public void ReplacePackage(IReadOnlyCollection<SchemaPackageFile> files, DateTime utcNow, string? updatedBy = null)
+    {
+        ArgumentNullException.ThrowIfNull(files);
+
+        if (files.Count == 0)
+            throw new ValidationException(ErrorCodes.Validation, "В комплекте схемы нет файлов.");
+
+        if (PublishedAt is not null)
+            throw new ConflictException(
+                ErrorCodes.SchemaInUse,
+                $"Версия {Code} опубликована: изменения оформляются новой версией схемы.");
+
+        _packageFiles.Clear();
+        _packageFiles.AddRange(files);
+
+        Sha256 ??= ComputePackageHash(files);
+        Touch(utcNow, updatedBy);
+    }
+
+    /// <summary>Комплект компилируется: без этого проверять документы по версии нельзя.</summary>
+    public void MarkCompiled(string? entryPoint, string? targetNamespace, DateTime utcNow, string? updatedBy = null)
+    {
+        EntryPoint = Guard.Required(entryPoint, "Корневой XSD", EntryPointMaxLength);
+        TargetNamespace = Guard.Required(targetNamespace, "Пространство имён", NamespaceMaxLength);
+        CompileMessage = null;
+        CompiledAt = utcNow;
+
+        Touch(utcNow, updatedBy);
+    }
+
+    /// <summary>Ошибка компиляции: версия остаётся непригодной для проверки документов.</summary>
+    public void MarkCompileFailed(string? message, DateTime utcNow, string? updatedBy = null)
+    {
+        CompileMessage = Guard.Required(message, "Ошибка компиляции", CompileMessageMaxLength);
+        CompiledAt = utcNow;
+
+        Touch(utcNow, updatedBy);
+    }
+
+    /// <summary>Версия пригодна для проверки: комплект загружен и скомпилирован.</summary>
+    public bool IsRunnable => IsActive && CompiledAt is not null && CompileMessage is null && _packageFiles.Count > 0;
+
+    /// <summary>Удаление запрещено, пока по версии есть документы.</summary>
+    public void EnsureDeletable(int documentsCount)
+    {
+        if (documentsCount > 0)
+            throw new ConflictException(
+                ErrorCodes.SchemaInUse,
+                $"По версии {Code} заполняется документов: {documentsCount}. Удаление запрещено.");
+
+        if (IsDefault)
+            throw new ConflictException(
+                ErrorCodes.ReferenceInUse,
+                $"Версия {Code} выбрана по умолчанию: сначала назначьте другую.");
+    }
+
     public void Activate(DateTime utcNow, string? updatedBy = null)
     {
         IsActive = true;
@@ -138,6 +218,18 @@ public sealed class SchemaVersion : AuditableEntity
 
         IsDefault = false;
         Touch(utcNow, updatedBy);
+    }
+
+    /// <summary>Хеш комплекта — хеш от упорядоченного списка «путь + хеш файла».</summary>
+    private static string ComputePackageHash(IReadOnlyCollection<SchemaPackageFile> files)
+    {
+        var manifest = string.Join(
+            "\n",
+            files
+                .OrderBy(file => file.Path, StringComparer.Ordinal)
+                .Select(file => $"{file.Path}:{file.Sha256}"));
+
+        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(manifest)));
     }
 
     /// <summary>Версия используется документом: тогда её нельзя удалить, только выключить.</summary>

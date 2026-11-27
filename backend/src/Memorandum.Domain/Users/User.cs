@@ -26,6 +26,12 @@ public sealed class User : AuditableEntity
 
     public bool IsActive { get; private set; }
 
+    /// <summary>
+    /// Администратор сервиса: глобальная роль вне организации. Видит организации,
+    /// пользователей и версии схем, но не содержимое документов чужих организаций.
+    /// </summary>
+    public bool IsServiceAdmin { get; private set; }
+
     /// <summary>Меняется при блокировке и смене пароля: отзывает уже выданные cookie.</summary>
     public string SecurityStamp { get; private set; } = null!;
 
@@ -51,6 +57,16 @@ public sealed class User : AuditableEntity
         user.NormalizedEmail = EmailNormalizer.Normalize(user.Email);
         user.MarkCreated(utcNow, createdBy);
         return user;
+    }
+
+    /// <summary>Выдача и снятие роли администратора сервиса.</summary>
+    public void SetServiceAdmin(bool isServiceAdmin, DateTime utcNow, string? updatedBy = null)
+    {
+        if (IsServiceAdmin == isServiceAdmin)
+            return;
+
+        IsServiceAdmin = isServiceAdmin;
+        Touch(utcNow, updatedBy);
     }
 
     public void Rename(string? fullName, DateTime utcNow, string? updatedBy = null)
